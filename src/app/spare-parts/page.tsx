@@ -6,7 +6,7 @@ import { sparePartsApi, carsApi } from '../../lib/api';
 import { SparePartCard } from '../../components/cars/SparePartCard';
 import { SparePartCardSkeleton } from '../../components/ui/Skeletons';
 import { SPARE_PART_CATEGORIES } from '../../types';
-import { Search, Filter, X, Wrench, Package } from 'lucide-react';
+import { X, Wrench, Package } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const QUALITY_OPTIONS = [
@@ -17,14 +17,12 @@ const QUALITY_OPTIONS = [
 
 function SparePartsPageInner() {
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [quality, setQuality] = useState('');
   const [brand, setBrand] = useState(searchParams.get('brand') || '');
   const [page, setPage] = useState(1);
 
   const queryParams = {
-    search: search || undefined,
     category: category || undefined,
     quality: quality || undefined,
     compatibleCarBrand: brand || undefined,
@@ -47,10 +45,10 @@ function SparePartsPageInner() {
   const meta = data?.meta;
 
   const clearFilters = () => {
-    setSearch(''); setCategory(''); setQuality(''); setBrand(''); setPage(1);
+    setCategory(''); setQuality(''); setBrand(''); setPage(1);
   };
 
-  const activeCount = [search, category, quality, brand].filter(Boolean).length;
+  const activeCount = [category, quality, brand].filter(Boolean).length;
 
   return (
     <div className="min-h-screen py-8 bg-dark-950">
@@ -94,21 +92,10 @@ function SparePartsPageInner() {
           ))}
         </div>
 
-        {/* Search + Filters */}
+        {/* Filters */}
         <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-            <input
-              type="text"
-              placeholder="ابحث عن قطعة غيار أو رقم القطعة..."
-              className="input-field pr-12"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-            />
-          </div>
-
           <select
-            className="select-field md:w-44"
+            className="select-field md:w-52"
             value={quality}
             onChange={e => { setQuality(e.target.value); setPage(1); }}
           >
@@ -117,7 +104,7 @@ function SparePartsPageInner() {
           </select>
 
           <select
-            className="select-field md:w-44"
+            className="select-field md:w-52"
             value={brand}
             onChange={e => { setBrand(e.target.value); setPage(1); }}
           >

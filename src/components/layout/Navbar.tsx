@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Car, GitCompare, Wrench, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield } from 'lucide-react';
+import { Car, Wrench, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store } from 'lucide-react';
 import { useCompareStore } from '../../lib/store';
 import { useAuthStore } from '../../lib/auth-store';
 import { clsx } from 'clsx';
@@ -41,8 +42,15 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-amber-500 flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:scale-105 transition-transform">
-              <Car className="w-5 h-5 text-white" />
+            <div className="relative w-11 h-11 rounded-xl bg-white/95 flex items-center justify-center shadow-lg shadow-black/20 group-hover:scale-105 transition-transform overflow-hidden p-1">
+              <Image
+                src="/autoarabia.png"
+                alt="AutoArabia"
+                width={40}
+                height={40}
+                className="object-contain"
+                priority
+              />
             </div>
             <div>
               <span className="font-display font-bold text-lg text-white leading-none">AutoArabia</span>
@@ -76,6 +84,15 @@ export function Navbar() {
 
           {/* CTA + Mobile */}
           <div className="flex items-center gap-2 md:gap-3">
+            {user?.role === 'seller' && (
+              <Link
+                href="/seller/cars"
+                className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-primary-500/30 text-primary-400 hover:bg-primary-500/10 transition-colors"
+              >
+                <Store className="w-4 h-4" />
+                سياراتي
+              </Link>
+            )}
             {user?.role === 'admin' && (
               <Link
                 href="/admin/cars"
@@ -91,7 +108,7 @@ export function Navbar() {
                   {user.name || user.email}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-dark-700 text-slate-400">
-                  {user.role === 'admin' ? 'مسؤول' : 'مستخدم'}
+                  {user.role === 'admin' ? 'مسؤول' : user.role === 'seller' ? 'بائع' : 'مستخدم'}
                 </span>
                 <button
                   type="button"
@@ -156,6 +173,16 @@ export function Navbar() {
                 {label}
               </Link>
             ))}
+            {user?.role === 'seller' && (
+              <Link
+                href="/seller/cars"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-primary-400 hover:bg-dark-800"
+              >
+                <Store className="w-4 h-4" />
+                سياراتي
+              </Link>
+            )}
             {user?.role === 'admin' && (
               <Link
                 href="/admin/cars"

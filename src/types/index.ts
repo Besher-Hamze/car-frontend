@@ -57,6 +57,11 @@ export interface Car {
   views: number;
   rating: number;
   reviewsCount: number;
+  /** Workflow status: pending = awaiting admin review, published = visible publicly. */
+  status?: 'pending' | 'published' | 'rejected';
+  /** Object id (string) of the seller who submitted the car (or admin-populated user object on /admin/pending). */
+  sellerId?: string | { _id: string; name?: string; email?: string };
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,15 +130,53 @@ export interface QueryParams {
   category?: string;
   condition?: string;
   engineType?: string;
+  transmission?: string;
+  driveType?: string;
+  color?: string;
   minPrice?: number;
   maxPrice?: number;
   minYear?: number;
   maxYear?: number;
+  minHorsepower?: number;
+  maxHorsepower?: number;
+  minSeats?: number;
+  minMileage?: number;
+  maxMileage?: number;
+  minMotorCondition?: string;
+  minElectricalCondition?: string;
+  minOilCondition?: string;
+  minChassisCondition?: string;
+  minTiresCondition?: string;
+  engineSmokeLevel?: string;
+  accidentHistoryType?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
   sortOrder?: string;
 }
+
+export const TRANSMISSIONS = [
+  { value: 'automatic', labelAr: 'أوتوماتيك' },
+  { value: 'manual', labelAr: 'يدوي' },
+  { value: 'cvt', labelAr: 'CVT' },
+];
+
+export const DRIVE_TYPES = [
+  { value: 'FWD', labelAr: 'FWD - دفع أمامي' },
+  { value: 'RWD', labelAr: 'RWD - دفع خلفي' },
+  { value: 'AWD', labelAr: 'AWD - دفع رباعي دائم' },
+  { value: '4WD', labelAr: '4WD - دفع رباعي' },
+];
+
+export const SCORE_STEPS: { value: string; labelAr: string }[] = [
+  { value: '', labelAr: 'أي' },
+  { value: '50', labelAr: '50% فأكثر' },
+  { value: '60', labelAr: '60% فأكثر' },
+  { value: '70', labelAr: '70% فأكثر' },
+  { value: '80', labelAr: '80% فأكثر' },
+  { value: '90', labelAr: '90% فأكثر' },
+  { value: '100', labelAr: '100% فقط' },
+];
 
 export const CATEGORIES = [
   { value: 'sedan', labelAr: 'سيدان', icon: '🚗' },
@@ -143,7 +186,7 @@ export const CATEGORIES = [
   { value: 'luxury', labelAr: 'فاخرة', icon: '✨' },
   { value: 'electric', labelAr: 'كهربائية', icon: '⚡' },
   { value: 'van', labelAr: 'فان', icon: '🚐' },
-  { value: 'coupe', labelAr: 'كوبيه', icon: '🚘' },
+  { value: 'taxi', labelAr: 'تكسي', icon: '🚖' },
 ];
 
 export const ENGINE_TYPES = [
@@ -256,7 +299,7 @@ export function accidentLevelToLabel(score: string | undefined): string {
 export const SPARE_PART_CATEGORIES = [
   { value: 'engine', labelAr: 'المحرك', icon: '⚙️' },
   { value: 'brakes', labelAr: 'الفرامل', icon: '🛑' },
-  { value: 'suspension', labelAr: 'التعليق', icon: '🔧' },
+  { value: 'suspension', labelAr: 'نوابض السيارة', icon: '🔧' },
   { value: 'electrical', labelAr: 'الكهرباء', icon: '⚡' },
   { value: 'body', labelAr: 'الهيكل', icon: '🚗' },
   { value: 'interior', labelAr: 'الداخلية', icon: '💺' },

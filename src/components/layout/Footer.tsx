@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { Car, Phone, Mail, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import { Phone, Mail, MapPin, Instagram, Facebook, Youtube } from 'lucide-react';
+
+const SOCIAL_LINKS = [
+  { href: 'https://instagram.com', label: 'Instagram', icon: Instagram },
+  { href: 'https://facebook.com', label: 'Facebook', icon: Facebook },
+  { href: 'https://youtube.com', label: 'YouTube', icon: Youtube },
+];
 
 export function Footer() {
   return (
@@ -9,8 +16,14 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-amber-500 flex items-center justify-center">
-                <Car className="w-5 h-5 text-white" />
+              <div className="relative w-11 h-11 rounded-xl bg-white/95 flex items-center justify-center overflow-hidden p-1 shadow-lg shadow-black/20">
+                <Image
+                  src="/autoarabia.png"
+                  alt="AutoArabia"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                />
               </div>
               <span className="font-display font-bold text-xl text-white">AutoArabia</span>
             </div>
@@ -18,10 +31,17 @@ export function Footer() {
               منصتك الشاملة لاستعراض السيارات ومقارنتها وإيجاد قطع الغيار المناسبة بأفضل الأسعار.
             </p>
             <div className="flex gap-3 mt-4">
-              {['X', 'IG', 'YT'].map(s => (
-                <div key={s} className="w-9 h-9 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center text-xs font-bold text-slate-400 hover:text-primary-400 hover:border-primary-500/30 cursor-pointer transition-all">
-                  {s}
-                </div>
+              {SOCIAL_LINKS.map(({ href, label, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="w-10 h-10 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center text-slate-400 hover:text-primary-400 hover:border-primary-500/40 hover:bg-dark-700 transition-all"
+                >
+                  <Icon className="w-4 h-4" />
+                </a>
               ))}
             </div>
           </div>

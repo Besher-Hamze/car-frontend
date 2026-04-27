@@ -8,6 +8,7 @@ import { carsApi } from '../../../../../lib/api';
 import { useAuthStore } from '../../../../../lib/auth-store';
 import { useAuthHydrated } from '../../../../../hooks/useAuthHydrated';
 import { CarForm } from '../../../../../components/admin/CarForm';
+import { ReviewActions } from '../../../../../components/admin/ReviewActions';
 import { Car } from '../../../../../types';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 
@@ -63,6 +64,7 @@ export default function EditCarPage() {
           تعديل: {car.brand} {car.model}
         </h1>
         <p className="text-slate-400 text-sm mb-6">تحديث البيانات ثم احفظ</p>
+        <ReviewActions car={car} />
         <CarForm car={car} />
       </div>
     </div>

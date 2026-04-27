@@ -1,14 +1,24 @@
 'use client';
 import { useState, useCallback, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { carsApi } from '../../lib/api';
 import { CarCard } from '../../components/cars/CarCard';
 import { CarCardSkeleton } from '../../components/ui/Skeletons';
-import { CATEGORIES, ENGINE_TYPES, CONDITIONS, QueryParams } from '../../types';
 import {
-  Search, SlidersHorizontal, X, ChevronDown, ChevronLeft,
-  ChevronRight, Car, Filter
+  CATEGORIES,
+  CONDITIONS,
+  DRIVE_TYPES,
+  ENGINE_TYPES,
+  QueryParams,
+  SCORE_STEPS,
+  TRANSMISSIONS,
+  ACCIDENT_HISTORY_OPTIONS,
+  ENGINE_SMOKE_OPTIONS,
+} from '../../types';
+import {
+  Search, ChevronLeft, ChevronRight, Car,
+  SlidersHorizontal, X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -21,29 +31,48 @@ const SORT_OPTIONS = [
   { value: 'rating-desc', label: 'الأعلى تقييماً' },
 ];
 
+/** الأنواع الأساسية المطلوبة (SUV, Sports, Pickup, Sedan) تظهر أولاً. */
+const TYPE_ORDER = ['suv', 'sports', 'truck', 'sedan'];
+const TYPE_OPTIONS = [
+  ...TYPE_ORDER
+    .map((v) => CATEGORIES.find((c) => c.value === v))
+    .filter((c): c is (typeof CATEGORIES)[number] => !!c),
+  ...CATEGORIES.filter((c) => !TYPE_ORDER.includes(c.value)),
+];
+
+const DEFAULT_FILTERS: QueryParams = {
+  search: '',
+  category: '',
+  page: 1,
+  limit: 12,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+};
+
+function toNum(v: string): number | undefined {
+  if (v === '' || v == null) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function CarsPageInner() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const [showFilters, setShowFilters] = useState(false);
 
   const [filters, setFilters] = useState<QueryParams>({
+    ...DEFAULT_FILTERS,
     search: searchParams.get('search') || '',
-    brand: searchParams.get('brand') || '',
     category: searchParams.get('category') || '',
-    condition: searchParams.get('condition') || '',
-    engineType: searchParams.get('engineType') || '',
-    minPrice: undefined,
-    maxPrice: undefined,
-    page: 1,
-    limit: 12,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
   });
 
   const [sort, setSort] = useState('createdAt-desc');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
+  /** فاخرة = جميع السيارات فوق 30K (بدون تقييد بالفئة). */
+  const LUXURY_MIN_PRICE = 30000;
+  const isLuxury = filters.category === 'luxury';
   const queryParams = {
     ...filters,
+    ...(isLuxury ? { category: undefined, minPrice: LUXURY_MIN_PRICE } : {}),
     sortBy: sort.split('-')[0],
     sortOrder: sort.split('-')[1],
   };
@@ -54,7 +83,7 @@ function CarsPageInner() {
     placeholderData: prev => prev,
   });
 
-  const { data: brandsData } = useQuery({
+  const { data: brandsData } = useQuery<string[]>({
     queryKey: ['brands'],
     queryFn: () => carsApi.getBrands().then(r => r.data),
   });
@@ -63,14 +92,21 @@ function CarsPageInner() {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   }, []);
 
-  const clearFilters = () => {
-    setFilters({ search: '', brand: '', category: '', condition: '', engineType: '', page: 1, limit: 12 });
-  };
+  const clearFilters = () => setFilters({ ...DEFAULT_FILTERS });
 
-  const activeFilterCount = [
-    filters.search, filters.brand, filters.category, filters.condition, filters.engineType,
-    filters.minPrice, filters.maxPrice,
-  ].filter(Boolean).length;
+  /** Keys that count toward "active" filters (excludes pagination/sort). */
+  const ACTIVE_KEYS: (keyof QueryParams)[] = [
+    'search', 'brand', 'category', 'condition', 'engineType',
+    'transmission', 'driveType', 'color',
+    'minPrice', 'maxPrice', 'minYear', 'maxYear',
+    'minHorsepower', 'maxHorsepower', 'minSeats', 'minMileage', 'maxMileage',
+    'minMotorCondition', 'minElectricalCondition', 'minOilCondition',
+    'minChassisCondition', 'minTiresCondition',
+    'engineSmokeLevel', 'accidentHistoryType',
+  ];
+  const activeCount = ACTIVE_KEYS.filter(
+    (k) => filters[k] !== undefined && filters[k] !== '' && filters[k] !== null,
+  ).length;
 
   const cars = data?.data || [];
   const meta = data?.meta;
@@ -86,8 +122,8 @@ function CarsPageInner() {
           </p>
         </div>
 
-        {/* Search + Sort Bar */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
+        {/* Search + Type + Sort + Advanced toggle */}
+        <div className="flex flex-col md:flex-row gap-3 mb-4">
           <div className="flex-1 relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <input
@@ -101,6 +137,18 @@ function CarsPageInner() {
 
           <select
             className="select-field md:w-52"
+            value={filters.category || ''}
+            onChange={e => updateFilter('category', e.target.value)}
+            aria-label="أنواع"
+          >
+            <option value="">أنواع</option>
+            {TYPE_OPTIONS.map(c => (
+              <option key={c.value} value={c.value}>{c.labelAr}</option>
+            ))}
+          </select>
+
+          <select
+            className="select-field md:w-52"
             value={sort}
             onChange={e => setSort(e.target.value)}
           >
@@ -108,118 +156,216 @@ function CarsPageInner() {
           </select>
 
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            type="button"
+            onClick={() => setShowAdvanced((s) => !s)}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 rounded-xl border font-medium transition-all',
-              showFilters || activeFilterCount > 0
+              'flex items-center justify-center gap-2 px-5 py-3 rounded-xl border font-medium transition-all',
+              showAdvanced || activeCount > 0
                 ? 'bg-primary-500/15 border-primary-500/30 text-primary-400'
-                : 'bg-dark-800 border-dark-700 text-slate-400 hover:text-white'
+                : 'bg-dark-800 border-dark-700 text-slate-300 hover:text-white',
             )}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            <span>فلترة</span>
-            {activeFilterCount > 0 && (
+            <span>فلتر متقدم</span>
+            {activeCount > 0 && (
               <span className="w-5 h-5 rounded-full bg-primary-500 text-white text-[11px] font-bold flex items-center justify-center">
-                {activeFilterCount}
+                {activeCount}
               </span>
             )}
           </button>
         </div>
 
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="card p-6 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Brand */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">الماركة</label>
-              <select className="select-field" value={filters.brand} onChange={e => updateFilter('brand', e.target.value)}>
-                <option value="">جميع الماركات</option>
-                {(brandsData as string[] || []).map((b: string) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">الفئة</label>
-              <select className="select-field" value={filters.category} onChange={e => updateFilter('category', e.target.value)}>
-                <option value="">جميع الفئات</option>
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.labelAr}</option>)}
-              </select>
-            </div>
-
-            {/* Engine Type */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">نوع المحرك</label>
-              <select className="select-field" value={filters.engineType} onChange={e => updateFilter('engineType', e.target.value)}>
-                <option value="">جميع المحركات</option>
-                {ENGINE_TYPES.map(e => <option key={e.value} value={e.value}>{e.labelAr}</option>)}
-              </select>
-            </div>
-
-            {/* Condition */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">الحالة</label>
-              <select className="select-field" value={filters.condition} onChange={e => updateFilter('condition', e.target.value)}>
-                <option value="">الكل</option>
-                {CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.labelAr}</option>)}
-              </select>
-            </div>
-
-            {/* Price Range */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">الحد الأدنى للسعر (ريال)</label>
-              <input
-                type="number"
-                placeholder="0"
-                className="input-field"
-                value={filters.minPrice || ''}
-                onChange={e => updateFilter('minPrice', e.target.value ? Number(e.target.value) : undefined)}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">الحد الأقصى للسعر (ريال)</label>
-              <input
-                type="number"
-                placeholder="بدون حد"
-                className="input-field"
-                value={filters.maxPrice || ''}
-                onChange={e => updateFilter('maxPrice', e.target.value ? Number(e.target.value) : undefined)}
-              />
-            </div>
-
-            {/* Clear */}
-            <div className="flex items-end col-span-2">
-              <button onClick={clearFilters} className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm transition-colors">
-                <X className="w-4 h-4" />
-                مسح الفلاتر
-              </button>
-            </div>
+        {isLuxury && (
+          <div className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm">
+            <span>✨</span>
+            <span>
+              فاخرة: يتم عرض كل السيارات بسعر أعلى من{' '}
+              {LUXURY_MIN_PRICE.toLocaleString('en-US')}$
+            </span>
           </div>
         )}
 
-        {/* Active Filter Tags */}
-        {activeFilterCount > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {filters.brand && (
-              <span className="badge badge-orange gap-2">
-                الماركة: {filters.brand}
-                <button onClick={() => updateFilter('brand', '')}><X className="w-3 h-3" /></button>
-              </span>
-            )}
-            {filters.category && (
-              <span className="badge badge-blue gap-2">
-                الفئة: {CATEGORIES.find(c => c.value === filters.category)?.labelAr}
-                <button onClick={() => updateFilter('category', '')}><X className="w-3 h-3" /></button>
-              </span>
-            )}
-            {filters.engineType && (
-              <span className="badge badge-green gap-2">
-                المحرك: {ENGINE_TYPES.find(e => e.value === filters.engineType)?.labelAr}
-                <button onClick={() => updateFilter('engineType', '')}><X className="w-3 h-3" /></button>
-              </span>
-            )}
+        {/* Advanced Filter Panel */}
+        {showAdvanced && (
+          <div className="card p-6 mb-6 space-y-6">
+            {/* Row 1 — basics */}
+            <div>
+              <h3 className="text-white font-semibold mb-3 text-sm">المعلومات الأساسية</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <FilterSelect
+                  label="الماركة"
+                  value={filters.brand}
+                  onChange={(v) => updateFilter('brand', v)}
+                  options={[
+                    { value: '', labelAr: 'جميع الماركات' },
+                    ...((brandsData || []).map((b) => ({ value: b, labelAr: b }))),
+                  ]}
+                />
+                <FilterSelect
+                  label="الحالة"
+                  value={filters.condition}
+                  onChange={(v) => updateFilter('condition', v)}
+                  options={[
+                    { value: '', labelAr: 'الكل' },
+                    ...CONDITIONS.map((c) => ({ value: c.value, labelAr: c.labelAr })),
+                  ]}
+                />
+                <FilterSelect
+                  label="نوع المحرك"
+                  value={filters.engineType}
+                  onChange={(v) => updateFilter('engineType', v)}
+                  options={[
+                    { value: '', labelAr: 'جميع المحركات' },
+                    ...ENGINE_TYPES.map((e) => ({ value: e.value, labelAr: e.labelAr })),
+                  ]}
+                />
+                <FilterSelect
+                  label="ناقل الحركة"
+                  value={filters.transmission}
+                  onChange={(v) => updateFilter('transmission', v)}
+                  options={[
+                    { value: '', labelAr: 'أي' },
+                    ...TRANSMISSIONS.map((t) => ({ value: t.value, labelAr: t.labelAr })),
+                  ]}
+                />
+                <FilterSelect
+                  label="الدفع"
+                  value={filters.driveType}
+                  onChange={(v) => updateFilter('driveType', v)}
+                  options={[
+                    { value: '', labelAr: 'أي' },
+                    ...DRIVE_TYPES.map((d) => ({ value: d.value, labelAr: d.labelAr })),
+                  ]}
+                />
+                <div>
+                  <label className="text-xs text-slate-400 mb-1.5 block">اللون</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: White"
+                    className="input-field"
+                    value={filters.color || ''}
+                    onChange={(e) => updateFilter('color', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1.5 block">أدنى عدد مقاعد</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    className="input-field"
+                    value={filters.minSeats ?? ''}
+                    onChange={(e) => updateFilter('minSeats', toNum(e.target.value))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2 — ranges */}
+            <div>
+              <h3 className="text-white font-semibold mb-3 text-sm">الأسعار والأداء</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <RangeFields
+                  label="السعر ($)"
+                  minValue={filters.minPrice}
+                  maxValue={filters.maxPrice}
+                  onMin={(v) => updateFilter('minPrice', v)}
+                  onMax={(v) => updateFilter('maxPrice', v)}
+                  placeholderMin="0"
+                  placeholderMax="بدون حد"
+                />
+                <RangeFields
+                  label="سنة الإنتاج"
+                  minValue={filters.minYear}
+                  maxValue={filters.maxYear}
+                  onMin={(v) => updateFilter('minYear', v)}
+                  onMax={(v) => updateFilter('maxYear', v)}
+                  placeholderMin="1990"
+                  placeholderMax="2026"
+                />
+                <RangeFields
+                  label="قوة المحرك (حصان)"
+                  minValue={filters.minHorsepower}
+                  maxValue={filters.maxHorsepower}
+                  onMin={(v) => updateFilter('minHorsepower', v)}
+                  onMax={(v) => updateFilter('maxHorsepower', v)}
+                  placeholderMin="0"
+                  placeholderMax="بدون حد"
+                />
+                <RangeFields
+                  label="شقد ماشية (كم)"
+                  minValue={filters.minMileage}
+                  maxValue={filters.maxMileage}
+                  onMin={(v) => updateFilter('minMileage', v)}
+                  onMax={(v) => updateFilter('maxMileage', v)}
+                  placeholderMin="0"
+                  placeholderMax="بدون حد"
+                />
+              </div>
+            </div>
+
+            {/* Row 3 — condition scores */}
+            <div>
+              <h3 className="text-white font-semibold mb-3 text-sm">حالة السيارة (الحد الأدنى)</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <FilterSelect
+                  label="موتور"
+                  value={filters.minMotorCondition}
+                  onChange={(v) => updateFilter('minMotorCondition', v)}
+                  options={SCORE_STEPS}
+                />
+                <FilterSelect
+                  label="حالة الكهرباء"
+                  value={filters.minElectricalCondition}
+                  onChange={(v) => updateFilter('minElectricalCondition', v)}
+                  options={SCORE_STEPS}
+                />
+                <FilterSelect
+                  label="زيت"
+                  value={filters.minOilCondition}
+                  onChange={(v) => updateFilter('minOilCondition', v)}
+                  options={SCORE_STEPS}
+                />
+                <FilterSelect
+                  label="شاسيه"
+                  value={filters.minChassisCondition}
+                  onChange={(v) => updateFilter('minChassisCondition', v)}
+                  options={SCORE_STEPS}
+                />
+                <FilterSelect
+                  label="الدواليب"
+                  value={filters.minTiresCondition}
+                  onChange={(v) => updateFilter('minTiresCondition', v)}
+                  options={SCORE_STEPS}
+                />
+                <FilterSelect
+                  label="مبخوخة"
+                  value={filters.engineSmokeLevel}
+                  onChange={(v) => updateFilter('engineSmokeLevel', v)}
+                  options={ENGINE_SMOKE_OPTIONS}
+                />
+                <FilterSelect
+                  label="قصة / نص قصة / بدون قص"
+                  value={filters.accidentHistoryType}
+                  onChange={(v) => updateFilter('accidentHistoryType', v)}
+                  options={ACCIDENT_HISTORY_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-dark-700">
+              <p className="text-xs text-slate-500">
+                {activeCount > 0 ? `${activeCount} فلتر نشط` : 'لا توجد فلاتر نشطة'}
+              </p>
+              <button
+                onClick={clearFilters}
+                disabled={activeCount === 0}
+                className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <X className="w-4 h-4" />
+                مسح كل الفلاتر
+              </button>
+            </div>
           </div>
         )}
 
@@ -280,6 +426,79 @@ function CarsPageInner() {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- sub-components ---------- */
+
+interface OptionItem { value: string; labelAr: string }
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string) => void;
+  options: OptionItem[];
+}) {
+  return (
+    <div>
+      <label className="text-xs text-slate-400 mb-1.5 block">{label}</label>
+      <select
+        className="select-field"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={`${label}-${o.value || 'any'}`} value={o.value}>
+            {o.labelAr}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function RangeFields({
+  label,
+  minValue,
+  maxValue,
+  onMin,
+  onMax,
+  placeholderMin,
+  placeholderMax,
+}: {
+  label: string;
+  minValue: number | undefined;
+  maxValue: number | undefined;
+  onMin: (v: number | undefined) => void;
+  onMax: (v: number | undefined) => void;
+  placeholderMin: string;
+  placeholderMax: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs text-slate-400 mb-1.5 block">{label}</label>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="number"
+          placeholder={placeholderMin}
+          className="input-field"
+          value={minValue ?? ''}
+          onChange={(e) => onMin(toNum(e.target.value))}
+        />
+        <input
+          type="number"
+          placeholder={placeholderMax}
+          className="input-field"
+          value={maxValue ?? ''}
+          onChange={(e) => onMax(toNum(e.target.value))}
+        />
       </div>
     </div>
   );

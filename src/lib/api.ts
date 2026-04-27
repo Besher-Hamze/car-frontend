@@ -50,6 +50,16 @@ export const carsApi = {
   create: (formData: FormData) => api.post('/cars', formData),
   update: (id: string, formData: FormData) => api.patch(`/cars/${id}`, formData),
   delete: (id: string) => api.delete(`/cars/${id}`),
+
+  // Seller workflow
+  submitBySeller: (formData: FormData) => api.post('/cars/seller', formData),
+  getMine: () => api.get('/cars/mine'),
+
+  // Admin workflow
+  getPending: () => api.get('/cars/admin/pending'),
+  publish: (id: string) => api.patch(`/cars/${id}/publish`),
+  reject: (id: string, reason?: string) =>
+    api.patch(`/cars/${id}/reject`, { reason }),
 };
 
 // Spare Parts API
@@ -70,11 +80,12 @@ export const comparisonApi = {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<{ accessToken: string; user: AuthUser }>('/auth/login', { email, password }),
-  register: (email: string, password: string, name?: string) =>
+  register: (email: string, password: string, name: string, role?: 'user' | 'seller') =>
     api.post<{ accessToken: string; user: AuthUser }>('/auth/register', {
       email,
       password,
       name,
+      ...(role ? { role } : {}),
     }),
   me: () => api.get<AuthUser>('/auth/me'),
 };

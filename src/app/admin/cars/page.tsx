@@ -8,7 +8,8 @@ import { carsApi } from '../../../lib/api';
 import { useAuthStore } from '../../../lib/auth-store';
 import { useAuthHydrated } from '../../../hooks/useAuthHydrated';
 import { formatPrice, getCategoryLabel, Car, PaginatedResponse } from '../../../types';
-import { Plus, Pencil, Trash2, LayoutDashboard, Loader2 } from 'lucide-react';
+import { StatusBadge } from '../../../components/cars/StatusBadge';
+import { Plus, Pencil, Trash2, LayoutDashboard, Loader2, ClipboardCheck } from 'lucide-react';
 
 export default function AdminCarsPage() {
   const router = useRouter();
@@ -26,11 +27,19 @@ export default function AdminCarsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-cars'],
     queryFn: () =>
-      carsApi.getAll({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).then(
-        (r) => r.data as PaginatedResponse<Car>,
-      ),
+      carsApi
+        // status=all → admins see published + pending + rejected
+        .getAll({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc', status: 'all' })
+        .then((r) => r.data as PaginatedResponse<Car>),
     enabled: hydrated && !!token && user?.role === 'admin',
   });
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['admin-pending-count'],
+    queryFn: () => carsApi.getPending().then((r) => r.data as Car[]),
+    enabled: hydrated && !!token && user?.role === 'admin',
+  });
+  const pendingCount = pendingData?.length ?? 0;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => carsApi.delete(id),
@@ -61,10 +70,27 @@ export default function AdminCarsPage() {
               <p className="text-slate-400 text-sm">إضافة، تعديل، أو حذف السيارات (مسؤول فقط)</p>
             </div>
           </div>
-          <Link href="/admin/cars/new" className="btn-primary flex items-center justify-center gap-2 text-sm py-2.5 px-5">
-            <Plus className="w-4 h-4" />
-            سيارة جديدة
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/cars/pending"
+              className="relative inline-flex items-center justify-center gap-2 text-sm py-2.5 px-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 transition-colors"
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              قيد المراجعة
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-amber-500 text-dark-900 text-[11px] font-bold">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/admin/cars/new"
+              className="btn-primary flex items-center justify-center gap-2 text-sm py-2.5 px-5"
+            >
+              <Plus className="w-4 h-4" />
+              سيارة جديدة
+            </Link>
+          </div>
         </div>
 
         <div className="card overflow-hidden">
@@ -83,6 +109,7 @@ export default function AdminCarsPage() {
                     <th className="p-4 font-medium">السنة</th>
                     <th className="p-4 font-medium">الفئة</th>
                     <th className="p-4 font-medium">السعر</th>
+                    <th className="p-4 font-medium">الحالة</th>
                     <th className="p-4 font-medium w-40">إجراءات</th>
                   </tr>
                 </thead>
@@ -96,6 +123,9 @@ export default function AdminCarsPage() {
                       <td className="p-4 text-slate-300">{getCategoryLabel(car.category)}</td>
                       <td className="p-4 text-primary-400 font-semibold">
                         {formatPrice(car.price, car.currency)}
+                      </td>
+                      <td className="p-4">
+                        <StatusBadge status={car.status} />
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
