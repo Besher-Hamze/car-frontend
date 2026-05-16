@@ -278,6 +278,22 @@ export function normalizeConditionScore(value: string | undefined): string {
   return value;
 }
 
+/** Parse stored condition value to 0–100 for progress bars. */
+export function scoreToPercent(value: string | undefined): number | null {
+  if (value == null || value === '') return null;
+  if (SCORE_RE.test(value)) return parseInt(value, 10);
+  if (LEGACY_CONDITION[value]) return parseInt(LEGACY_CONDITION[value], 10);
+  return null;
+}
+
+/** Map accident history dropdown to a display percent (higher = less damage). */
+export function accidentTypeToPercent(type: string | undefined): number | null {
+  if (type === 'none') return 100;
+  if (type === 'half_cut') return 50;
+  if (type === 'full_cut') return 0;
+  return null;
+}
+
 export function getAccidentHistoryLabel(value: string | undefined): string {
   if (value == null || value === '') return '—';
   if (value === 'full_cut') return 'قصة (كاملة)';

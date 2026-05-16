@@ -12,3 +12,8 @@ export function resolveCarImageUrl(url?: string | null): string | undefined {
   const path = url.startsWith('/') ? url : `/${url}`;
   return `${getApiOrigin()}${path}`;
 }
+/** Resolves stored paths like `/uploads/cars/...` or legacy absolute URLs for next/image `src`. */
+export function resolveCarImagesUrl(urls?: string[] | null): string[] | undefined {
+  if (!urls) return undefined;
+  return urls.map((url) => resolveCarImageUrl(url));
+}

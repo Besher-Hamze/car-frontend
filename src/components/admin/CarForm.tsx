@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { carsApi } from '../../lib/api';
@@ -17,9 +17,30 @@ import {
   ACCIDENT_HISTORY_OPTIONS,
 } from '../../types';
 import { ScoreSlider } from '../ui/ScoreSlider';
-import { Loader2, Save, ImageIcon } from 'lucide-react';
+import { Loader2, Save, ImageIcon, X, Star } from 'lucide-react';
 
 const CAR_CURRENCY_USD = 'USD';
+const MAX_IMAGES = 10;
+
+type ImageSlot =
+  | { type: 'existing'; url: string; preview: string }
+  | { type: 'new'; file: File; preview: string };
+
+function buildInitialSlots(car?: Car): ImageSlot[] {
+  if (!car) return [];
+  const urls: string[] = [];
+  if (car.imageUrl) urls.push(car.imageUrl);
+  if (car.images?.length) {
+    for (const u of car.images) {
+      if (u && u !== car.imageUrl) urls.push(u);
+    }
+  }
+  return urls.map((url) => ({
+    type: 'existing' as const,
+    url,
+    preview: resolveCarImageUrl(url) || url,
+  }));
+}
 
 const defaultForm = {
   brand: '',
@@ -71,23 +92,49 @@ export function CarForm({ car }: { car?: Car }) {
         }
       : defaultForm,
   );
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [slots, setSlots] = useState<ImageSlot[]>(() => buildInitialSlots(car));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!imageFile) {
-      setPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(imageFile);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
-
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addFiles(incoming: FileList | null) {
+    if (!incoming?.length) return;
+    setSlots((prev) => {
+      const next = [...prev];
+      for (const file of Array.from(incoming)) {
+        if (next.length >= MAX_IMAGES) break;
+        if (next.some((s) => s.type === 'new' && s.file.name === file.name && s.file.size === file.size)) {
+          continue;
+        }
+        next.push({
+          type: 'new',
+          file,
+          preview: URL.createObjectURL(file),
+        });
+      }
+      return next;
+    });
+  }
+
+  function removeSlot(index: number) {
+    setSlots((prev) => {
+      const removed = prev[index];
+      if (removed?.type === 'new') URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function makePrimary(index: number) {
+    if (index <= 0) return;
+    setSlots((prev) => {
+      const next = [...prev];
+      const [pick] = next.splice(index, 1);
+      next.unshift(pick);
+      return next;
+    });
   }
 
   function buildFormData(): FormData {
@@ -119,8 +166,17 @@ export function CarForm({ car }: { car?: Car }) {
       fd.append('accidentHistoryType', form.accidentHistoryType);
     }
     if (form.tiresCondition) fd.append('tiresCondition', form.tiresCondition);
-    if (imageFile) {
-      fd.append('image', imageFile);
+
+    if (isEdit) {
+      fd.append(
+        'imageSlots',
+        JSON.stringify(
+          slots.map((s) => (s.type === 'existing' ? { type: 'existing', url: s.url } : { type: 'new' })),
+        ),
+      );
+    }
+    for (const s of slots) {
+      if (s.type === 'new') fd.append('images', s.file);
     }
     return fd;
   }
@@ -128,8 +184,8 @@ export function CarForm({ car }: { car?: Car }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!isEdit && !imageFile) {
-      setError('يرجى اختيار صورة للسيارة');
+    if (slots.length === 0) {
+      setError('يرجى إضافة صورة واحدة على الأقل للسيارة');
       return;
     }
     setLoading(true);
@@ -151,8 +207,6 @@ export function CarForm({ car }: { car?: Car }) {
       setLoading(false);
     }
   }
-
-  const displaySrc = preview || (car?.imageUrl ? resolveCarImageUrl(car.imageUrl) : null);
 
   return (
     <form onSubmit={handleSubmit} className="card p-6 space-y-5 max-w-3xl">
@@ -357,18 +411,62 @@ export function CarForm({ car }: { car?: Car }) {
         <div className="md:col-span-2">
           <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
             <ImageIcon className="w-3.5 h-3.5" />
-            صورة السيارة {isEdit ? '(اختياري — اتركها للإبقاء على الصورة الحالية)' : '(مطلوب)'}
+            صور السيارة {isEdit ? '(أضف أو احذف أو رتّب)' : `(مطلوب — حتى ${MAX_IMAGES} صور)`}
           </label>
           <input
             type="file"
+            multiple
             accept="image/jpeg,image/png,image/gif,image/webp"
+            disabled={slots.length >= MAX_IMAGES}
             className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-dark-700 file:text-white hover:file:bg-dark-600"
-            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              addFiles(e.target.files);
+              e.target.value = '';
+            }}
           />
-          <p className="text-[11px] text-slate-500 mt-1.5">JPEG أو PNG أو WebP أو GIF — بحد أقصى 5 ميجابايت</p>
-          {displaySrc && (
-            <div className="relative mt-4 w-full max-w-md aspect-[16/10] rounded-xl overflow-hidden bg-dark-900 border border-dark-700">
-              <Image src={displaySrc} alt="معاينة" fill className="object-cover" sizes="(max-width: 768px) 100vw, 28rem" />
+          <p className="text-[11px] text-slate-500 mt-1.5">
+            JPEG أو PNG أو WebP أو GIF — بحد أقصى 5 ميجابايت لكل صورة. الصورة الأولى هي الرئيسية.
+          </p>
+          {slots.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {slots.map((slot, i) => (
+                <div
+                  key={slot.type === 'existing' ? slot.url : slot.preview}
+                  className="relative aspect-[4/3] rounded-xl overflow-hidden bg-dark-900 border border-dark-700 group"
+                >
+                  <Image
+                    src={slot.preview}
+                    alt={`صورة ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 50vw, 33vw"
+                    unoptimized={slot.type === 'new'}
+                  />
+                  {i === 0 ? (
+                    <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-primary-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      <Star className="w-3 h-3" /> رئيسية
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => makePrimary(i)}
+                      className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-dark-900/80 hover:bg-primary-500/90 text-white text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                      title="اجعلها الصورة الرئيسية"
+                    >
+                      <Star className="w-3 h-3" /> رئيسية
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeSlot(i)}
+                    className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-dark-900/80 hover:bg-red-500/90 text-white flex items-center justify-center transition-colors"
+                    title="حذف"
+                    aria-label="حذف الصورة"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
