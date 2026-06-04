@@ -47,12 +47,15 @@ export const carsApi = {
   getBrands: () => api.get('/cars/brands'),
   getStats: () => api.get('/cars/stats'),
   seed: () => api.post('/cars/seed'),
-  create: (formData: FormData) => api.post('/cars', formData),
-  update: (id: string, formData: FormData) => api.patch(`/cars/${id}`, formData),
+  create: (formData: FormData) =>
+    api.post('/cars', formData, { timeout: 120000, maxContentLength: Infinity, maxBodyLength: Infinity }),
+  update: (id: string, formData: FormData) =>
+    api.patch(`/cars/${id}`, formData, { timeout: 120000, maxContentLength: Infinity, maxBodyLength: Infinity }),
   delete: (id: string) => api.delete(`/cars/${id}`),
 
   // Seller workflow
-  submitBySeller: (formData: FormData) => api.post('/cars/seller', formData),
+  submitBySeller: (formData: FormData) =>
+    api.post('/cars/seller', formData, { timeout: 120000, maxContentLength: Infinity, maxBodyLength: Infinity }),
   getMine: () => api.get('/cars/mine'),
 
   // Admin workflow

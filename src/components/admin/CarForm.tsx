@@ -31,14 +31,45 @@ import {
   getYearMarketPrice,
   type MarketCatalogFull,
 } from '../../lib/market-catalog';
+import { validateCarImageFile } from '../../lib/car-image-upload';
 import { Loader2, Save, ImageIcon, X, Star } from 'lucide-react';
 
 const CAR_CURRENCY_USD = 'USD';
 const MAX_IMAGES = 10;
 
+let slotIdSeq = 0;
+function newSlotId() {
+  slotIdSeq += 1;
+  return `slot-${Date.now()}-${slotIdSeq}`;
+}
+
 type ImageSlot =
-  | { type: 'existing'; url: string; preview: string }
-  | { type: 'new'; file: File; preview: string };
+  | { id: string; type: 'existing'; url: string; preview: string }
+  | { id: string; type: 'new'; file: File; preview: string };
+
+function appendFilesToSlots(prev: ImageSlot[], files: File[]): { next: ImageSlot[]; added: number } {
+  const next = [...prev];
+  let added = 0;
+  for (const file of files) {
+    if (next.length >= MAX_IMAGES) break;
+    const duplicate = next.some(
+      (s) =>
+        s.type === 'new' &&
+        s.file.name === file.name &&
+        s.file.size === file.size &&
+        s.file.lastModified === file.lastModified,
+    );
+    if (duplicate) continue;
+    next.push({
+      id: newSlotId(),
+      type: 'new',
+      file,
+      preview: URL.createObjectURL(file),
+    });
+    added += 1;
+  }
+  return { next, added };
+}
 
 function buildInitialSlots(car?: Car): ImageSlot[] {
   if (!car) return [];
@@ -50,6 +81,7 @@ function buildInitialSlots(car?: Car): ImageSlot[] {
     }
   }
   return urls.map((url) => ({
+    id: newSlotId(),
     type: 'existing' as const,
     url,
     preview: resolveCarImageUrl(url) || url,
@@ -302,26 +334,38 @@ export function CarForm({ car }: { car?: Car }) {
 
   function addFiles(incoming: FileList | null) {
     if (!incoming?.length) return;
-    let added = 0;
-    setSlots((prev) => {
-      const next = [...prev];
-      for (const file of Array.from(incoming)) {
-        if (next.length >= MAX_IMAGES) break;
-        if (next.some((s) => s.type === 'new' && s.file.name === file.name && s.file.size === file.size)) {
-          continue;
-        }
-        next.push({
-          type: 'new',
-          file,
-          preview: URL.createObjectURL(file),
-        });
-        added += 1;
+    const picked = Array.from(incoming);
+    const rejections: string[] = [];
+    const toAdd: File[] = [];
+
+    for (const file of picked) {
+      const validationErr = validateCarImageFile(file);
+      if (validationErr) {
+        rejections.push(validationErr);
+        continue;
       }
-      return next;
-    });
+      toAdd.push(file);
+    }
+
+    if (toAdd.length === 0) {
+      setError(rejections[0] || 'لم تُضف أي صورة صالحة');
+      return;
+    }
+
+    const { next, added } = appendFilesToSlots(slots, toAdd);
+    setSlots(next);
+
     if (added > 0) {
-      setError('');
+      setError(
+        rejections.length > 0
+          ? `تمت إضافة ${added} صورة — تم تجاهل ${rejections.length} ملف: ${rejections[0]}`
+          : '',
+      );
       setImageHighlight(false);
+    } else if (slots.length >= MAX_IMAGES) {
+      setError(`الحد الأقصى ${MAX_IMAGES} صور`);
+    } else {
+      setError('الصور المختارة مضافة مسبقاً');
     }
   }
 
@@ -422,7 +466,8 @@ export function CarForm({ car }: { car?: Car }) {
       if (brandKey && modelKey) brandModel = { brand: brandKey, model: modelKey };
     }
 
-    if (slots.length === 0) {
+    const uploadSlots = slots.filter((s) => s.type === 'new');
+    if (slots.length === 0 || (!isEdit && uploadSlots.length === 0)) {
       setError('يرجى إضافة صورة واحدة على الأقل للسيارة');
       setImageHighlight(true);
       imageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -439,10 +484,17 @@ export function CarForm({ car }: { car?: Car }) {
       router.push('/admin/cars');
       router.refresh();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string | string[] } } })?.response?.data
-          ?.message;
-      setError(Array.isArray(msg) ? msg.join(' ') : msg || 'حدث خطأ');
+      const ax = err as {
+        code?: string;
+        message?: string;
+        response?: { data?: { message?: string | string[] } };
+      };
+      if (ax.code === 'ECONNABORTED') {
+        setError('انتهت مهلة الرفع — قلّل عدد الصور أو حجمها (5MB لكل صورة) وحاول مجدداً');
+        return;
+      }
+      const msg = ax.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(' ') : msg || ax.message || 'حدث خطأ');
     } finally {
       setLoading(false);
     }
@@ -598,17 +650,25 @@ export function CarForm({ car }: { car?: Car }) {
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {slots.map((slot, i) => (
                 <div
-                  key={slot.type === 'existing' ? slot.url : slot.preview}
+                  key={slot.id}
                   className="relative aspect-[4/3] rounded-xl overflow-hidden bg-dark-900 border border-dark-700 group"
                 >
-                  <Image
-                    src={slot.preview}
-                    alt={`صورة ${i + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 50vw, 33vw"
-                    unoptimized={slot.type === 'new'}
-                  />
+                  {slot.type === 'new' ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- blob URLs for local previews
+                    <img
+                      src={slot.preview}
+                      alt={`صورة ${i + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={slot.preview}
+                      alt={`صورة ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                    />
+                  )}
                   {i === 0 ? (
                     <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-primary-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                       <Star className="w-3 h-3" /> رئيسية
