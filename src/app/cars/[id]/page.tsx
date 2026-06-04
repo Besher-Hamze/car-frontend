@@ -21,6 +21,7 @@ import {
   Car,
 } from '../../../types';
 import { ConditionScoreBar } from '../../../components/cars/ConditionScoreBar';
+import { AiPriceLabelBadge } from '../../../components/cars/AiPriceLabelBadge';
 import {
   Heart, GitCompare, Fuel, Zap, Shield, Star, Eye, Users,
   Gauge, Settings, Ruler, Package, ChevronLeft, CheckCircle2,
@@ -229,14 +230,17 @@ export default function CarDetailPage() {
                 </div>
               </div>
 
-              <div className="card p-5 lg:min-w-[240px] shrink-0">
-                <p className="text-slate-400 text-sm mb-1">السعر</p>
-                <p className="text-3xl sm:text-4xl font-black text-primary-400">
-                  {formatPrice(car.price, car.currency)}
-                </p>
-                {car.condition !== 'new' && car.mileage != null && car.mileage > 0 && (
-                  <p className="text-slate-500 text-sm mt-1">{car.mileage.toLocaleString('ar')} كم</p>
-                )}
+              <div className="card p-5 lg:min-w-[240px] shrink-0 space-y-3">
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">السعر</p>
+                  <p className="text-3xl sm:text-4xl font-black text-primary-400">
+                    {formatPrice(car.price, car.currency)}
+                  </p>
+                  {car.condition !== 'new' && car.mileage != null && car.mileage > 0 && (
+                    <p className="text-slate-500 text-sm mt-1">{car.mileage.toLocaleString('ar')} كم</p>
+                  )}
+                </div>
+                <AiPriceLabelBadge car={car} />
               </div>
             </div>
 

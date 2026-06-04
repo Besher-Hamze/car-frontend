@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, GitCompare, Fuel, Zap, Users, Star, Eye } from 'lucide-react';
 import { Car, formatPrice, getCategoryLabel, getEngineTypeLabel } from '../../types';
+import { AiPriceLabelBadge } from './AiPriceLabelBadge';
 import { resolveCarImageUrl } from '../../lib/image-url';
 import { useCompareStore, useFavoritesStore } from '../../lib/store';
 import { clsx } from 'clsx';
@@ -141,11 +142,12 @@ export function CarCard({ car }: CarCardProps) {
           )}
 
           {/* Bottom */}
-          <div className="flex items-center justify-between pt-2 border-t border-dark-700 mt-auto">
+          <div className="flex items-center justify-between pt-2 border-t border-dark-700 mt-auto gap-2 flex-wrap">
             <div>
               <p className="text-primary-400 font-bold text-lg leading-tight">
                 {formatPrice(car.price, car.currency)}
               </p>
+              <AiPriceLabelBadge car={car} compact className="mt-1.5" />
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-500">
               {car.rating > 0 && (

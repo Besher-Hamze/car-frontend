@@ -60,6 +60,16 @@ export const carsApi = {
   publish: (id: string) => api.patch(`/cars/${id}/publish`),
   reject: (id: string, reason?: string) =>
     api.patch(`/cars/${id}/reject`, { reason }),
+
+  /** تقييم السعر بالذكاء الاصطناعي (كل مواصفات السيارة) */
+  evaluatePrice: (id: string) => api.get(`/cars/${id}/evaluate-price`),
+};
+
+export const priceEvaluationApi = {
+  evaluate: (body: Record<string, unknown>) =>
+    api.post('/price-evaluation/evaluate', body),
+  getCatalog: () =>
+    api.get<import('./market-catalog').MarketCatalogFull>('/price-evaluation/catalog'),
 };
 
 // Spare Parts API

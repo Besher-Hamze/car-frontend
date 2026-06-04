@@ -52,6 +52,8 @@ export interface Car {
   isEngineSmoking?: boolean;
   color?: string;
   interiorColor?: string;
+  /** وارد السيارة — gulf | american | korean | local | … */
+  imported?: string;
   isAvailable: boolean;
   description?: string;
   views: number;
@@ -62,6 +64,10 @@ export interface Car {
   /** Object id (string) of the seller who submitted the car (or admin-populated user object on /admin/pending). */
   sellerId?: string | { _id: string; name?: string; email?: string };
   rejectionReason?: string;
+  /** تقييم السعر بالذكاء الاصطناعي */
+  ai_lable_price?: 'very_cheap' | 'cheap' | 'fair' | 'expensive' | 'very_expensive' | string;
+  ai_lable_price_ar?: string;
+  ai_fair_price?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -166,6 +172,36 @@ export const DRIVE_TYPES = [
   { value: 'RWD', labelAr: 'RWD - دفع خلفي' },
   { value: 'AWD', labelAr: 'AWD - دفع رباعي دائم' },
   { value: '4WD', labelAr: '4WD - دفع رباعي' },
+];
+
+/** قيم موحّدة لتقييم AI (مطابقة لـ spec_mapper) */
+export const IMPORTED_OPTIONS = [
+  { value: '', labelAr: '— غير محدد —' },
+  { value: 'gulf', labelAr: 'خليجي' },
+  { value: 'american', labelAr: 'أميركي' },
+  { value: 'korean', labelAr: 'كوري' },
+  { value: 'european', labelAr: 'أوروبي' },
+  { value: 'japanese', labelAr: 'ياباني' },
+  { value: 'chinese', labelAr: 'صيني' },
+  { value: 'turkish', labelAr: 'تركي' },
+  { value: 'local', labelAr: 'محلي / سوري' },
+  { value: 'other', labelAr: 'أخرى' },
+];
+
+export const CAR_COLORS = [
+  { value: '', labelAr: '— غير محدد —' },
+  { value: 'white', labelAr: 'أبيض' },
+  { value: 'black', labelAr: 'أسود' },
+  { value: 'silver', labelAr: 'فضي' },
+  { value: 'gray', labelAr: 'رمادي' },
+  { value: 'navy', labelAr: 'كحلي' },
+  { value: 'blue', labelAr: 'أزرق' },
+  { value: 'red', labelAr: 'أحمر' },
+  { value: 'beige', labelAr: 'بيج' },
+  { value: 'brown', labelAr: 'بني' },
+  { value: 'gold', labelAr: 'ذهبي' },
+  { value: 'green', labelAr: 'أخضر' },
+  { value: 'other', labelAr: 'أخرى' },
 ];
 
 export const SCORE_STEPS: { value: string; labelAr: string }[] = [
