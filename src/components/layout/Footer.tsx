@@ -53,7 +53,7 @@ export function Footer() {
               {[
                 { href: '/cars', label: 'استعراض السيارات' },
                 { href: '/compare', label: 'مقارنة السيارات' },
-                { href: '/spare-parts', label: 'قطع الغيار' },
+                { href: '/cars?sort=aiMatch-asc', label: 'فلترة حسب السعر والـ AI' },
                 { href: '/cars?condition=used', label: 'سيارات مستعملة' },
                 { href: '/cars?engineType=electric', label: 'السيارات الكهربائية' },
               ].map(({ href, label }) => (

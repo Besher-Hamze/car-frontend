@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Car, Wrench, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store } from 'lucide-react';
+import { Car, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store, SlidersHorizontal } from 'lucide-react';
 import { useCompareStore } from '../../lib/store';
 import { useAuthStore } from '../../lib/auth-store';
 import { clsx } from 'clsx';
@@ -12,7 +12,7 @@ const navLinks = [
   { href: '/', label: 'الرئيسية', icon: Home },
   { href: '/cars', label: 'السيارات', icon: Car },
   { href: '/compare', label: 'المقارنة', icon: Scale },
-  { href: '/spare-parts', label: 'قطع الغيار', icon: Wrench },
+  { href: '/cars?sort=aiMatch-asc', label: 'فلترة', icon: SlidersHorizontal },
 ];
 
 export function Navbar() {

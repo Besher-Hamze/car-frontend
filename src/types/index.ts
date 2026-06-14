@@ -8,6 +8,7 @@ export interface Car {
   category: string;
   imageUrl?: string;
   images?: string[];
+  documentUrls?: string[];
   engineType: string;
   engineDisplacement?: number;
   horsepower?: number;
@@ -218,11 +219,11 @@ export const CATEGORIES = [
   { value: 'sedan', labelAr: 'سيدان', icon: '🚗' },
   { value: 'suv', labelAr: 'SUV', icon: '🚙' },
   { value: 'truck', labelAr: 'بيك أب', icon: '🛻' },
-  { value: 'sports', labelAr: 'رياضية', icon: '🏎️' },
+  { value: 'coupe', labelAr: 'كوبيه', icon: '🏎️' },
+  { value: 'hatchback', labelAr: 'هاتشباك', icon: '🚗' },
   { value: 'luxury', labelAr: 'فاخرة', icon: '✨' },
   { value: 'electric', labelAr: 'كهربائية', icon: '⚡' },
   { value: 'van', labelAr: 'فان', icon: '🚐' },
-  { value: 'taxi', labelAr: 'تكسي', icon: '🚖' },
 ];
 
 export const ENGINE_TYPES = [
@@ -371,7 +372,13 @@ export function formatPrice(price: number, _currency?: string): string {
   }).format(n);
 }
 
+const LEGACY_CATEGORY_LABELS: Record<string, string> = {
+  sports: 'كوبيه',
+  taxi: 'هاتشباك',
+};
+
 export function getCategoryLabel(value: string): string {
+  if (LEGACY_CATEGORY_LABELS[value]) return LEGACY_CATEGORY_LABELS[value];
   return CATEGORIES.find(c => c.value === value)?.labelAr || value;
 }
 

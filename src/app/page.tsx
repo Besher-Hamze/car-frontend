@@ -7,9 +7,9 @@ import { carsApi } from '../lib/api';
 import { CarCard } from '../components/cars/CarCard';
 import { CarCardSkeleton, StatsSkeleton } from '../components/ui/Skeletons';
 import {
-  Car, Wrench, Scale, ChevronLeft, ChevronRight, Shield, Zap,
+  Car, Scale, ChevronLeft, ChevronRight, Shield, Zap,
   Search, Star, Award, Calendar, Sparkles,
-  Users
+  Users, SlidersHorizontal
 } from 'lucide-react';
 import { CATEGORIES, formatPrice } from '../types';
 import { resolveCarImageUrl } from '../lib/image-url';
@@ -228,7 +228,7 @@ export default function HomePage() {
               {[
                 { icon: Car, label: 'إجمالي السيارات', value: stats?.totalCars?.toLocaleString('ar') || '0', color: 'text-primary-400' },
                 { icon: Award, label: 'ماركة عالمية', value: stats?.totalBrands || '0', color: 'text-amber-400' },
-                { icon: Wrench, label: 'قطعة غيار', value: '500+', color: 'text-blue-400' },
+                { icon: SlidersHorizontal, label: 'تقييم AI', value: 'حلب', color: 'text-blue-400' },
                 { icon: Star, label: 'تقييم المتوسط', value: '4.7', color: 'text-emerald-400' },
               ].map(({ icon: Icon, label, value, color }) => (
                 <div key={label} className="stat-card group hover:border-dark-600 transition-colors">
@@ -361,12 +361,12 @@ export default function HomePage() {
                 linkLabel: 'جرب المقارنة',
               },
               {
-                icon: Wrench,
-                title: 'قطع الغيار',
-                desc: 'قاعدة بيانات ضخمة لقطع الغيار الأصلية والمعادلة مع التوافق الكامل مع موديل سيارتك',
+                icon: SlidersHorizontal,
+                title: 'فلترة ذكية',
+                desc: 'فلترة حسب السعر والماركة والحالة مع ترتيب افتراضي حسب ملاءمة السعر (AI) في سوق حلب',
                 color: 'from-blue-500 to-cyan-500',
-                link: '/spare-parts',
-                linkLabel: 'ابحث عن قطعة',
+                link: '/cars?sort=aiMatch-asc',
+                linkLabel: 'ابدأ الفلترة',
               },
               {
                 icon: Shield,

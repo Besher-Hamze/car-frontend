@@ -12,7 +12,6 @@ import {
   CONDITIONS,
   ENGINE_TYPES,
   DRIVE_TYPES,
-  IMPORTED_OPTIONS,
   CAR_COLORS,
   parseScoreField,
   parseAccidentHistoryDropdown,
@@ -32,15 +31,31 @@ import {
   type MarketCatalogFull,
 } from '../../lib/market-catalog';
 import { validateCarImageFile } from '../../lib/car-image-upload';
-import { Loader2, Save, ImageIcon, X, Star } from 'lucide-react';
+import { validateCarDocumentFile } from '../../lib/car-document-upload';
+import { Loader2, Save, ImageIcon, X, Star, FileText } from 'lucide-react';
 
 const CAR_CURRENCY_USD = 'USD';
 const MAX_IMAGES = 10;
+const MAX_DOCUMENTS = 10;
 
 let slotIdSeq = 0;
 function newSlotId() {
   slotIdSeq += 1;
   return `slot-${Date.now()}-${slotIdSeq}`;
+}
+
+type DocumentSlot =
+  | { id: string; type: 'existing'; url: string; name: string }
+  | { id: string; type: 'new'; file: File; name: string };
+
+function buildInitialDocSlots(car?: Car): DocumentSlot[] {
+  if (!car?.documentUrls?.length) return [];
+  return car.documentUrls.map((url) => ({
+    id: newSlotId(),
+    type: 'existing' as const,
+    url,
+    name: url.split('/').pop() || 'وثيقة',
+  }));
 }
 
 type ImageSlot =
@@ -101,7 +116,7 @@ const defaultForm = {
   horsepower: '' as number | '',
   cylinders: '' as number | '',
   color: '',
-  imported: '',
+  imported: 'local',
   condition: 'new',
   seatingCapacity: 5,
   description: '',
@@ -136,7 +151,7 @@ export function CarForm({ car }: { car?: Car }) {
           horsepower: car.horsepower != null ? car.horsepower : ('' as number | ''),
           cylinders: car.cylinders != null ? car.cylinders : ('' as number | ''),
           color: car.color || '',
-          imported: car.imported || '',
+          imported: car.imported || 'local',
           condition: car.condition || 'new',
           seatingCapacity: car.seatingCapacity ?? 5,
           description: car.description || '',
@@ -152,6 +167,7 @@ export function CarForm({ car }: { car?: Car }) {
       : defaultForm,
   );
   const [slots, setSlots] = useState<ImageSlot[]>(() => buildInitialSlots(car));
+  const [docSlots, setDocSlots] = useState<DocumentSlot[]>(() => buildInitialDocSlots(car));
   const [error, setError] = useState('');
   const [imageHighlight, setImageHighlight] = useState(false);
   const imageSectionRef = useRef<HTMLDivElement>(null);
@@ -257,7 +273,7 @@ export function CarForm({ car }: { car?: Car }) {
       driveType: form.driveType,
       seatingCapacity: form.seatingCapacity,
       color: form.color || undefined,
-      imported: form.imported || undefined,
+      imported: 'local',
       condition: form.condition,
       motorCondition: form.motorCondition || undefined,
       electricalCondition: form.electricalCondition || undefined,
@@ -310,7 +326,6 @@ export function CarForm({ car }: { car?: Car }) {
     form.driveType,
     form.seatingCapacity,
     form.color,
-    form.imported,
     form.condition,
     form.motorCondition,
     form.electricalCondition,
@@ -387,6 +402,53 @@ export function CarForm({ car }: { car?: Car }) {
     });
   }
 
+  function addDocuments(incoming: FileList | null) {
+    if (!incoming?.length) return;
+    const rejections: string[] = [];
+    const toAdd: File[] = [];
+    for (const file of Array.from(incoming)) {
+      const err = validateCarDocumentFile(file);
+      if (err) {
+        rejections.push(err);
+        continue;
+      }
+      toAdd.push(file);
+    }
+    if (!toAdd.length) {
+      setError(rejections[0] || 'لم تُضف أي وثيقة صالحة');
+      return;
+    }
+    setDocSlots((prev) => {
+      const next = [...prev];
+      let added = 0;
+      for (const file of toAdd) {
+        if (next.length >= MAX_DOCUMENTS) break;
+        if (
+          next.some(
+            (d) =>
+              d.type === 'new' &&
+              d.file.name === file.name &&
+              d.file.size === file.size &&
+              d.file.lastModified === file.lastModified,
+          )
+        ) {
+          continue;
+        }
+        next.push({ id: newSlotId(), type: 'new', file, name: file.name });
+        added += 1;
+      }
+      if (added > 0 && rejections.length === 0) setError('');
+      return next;
+    });
+    if (rejections.length > 0) {
+      setError(rejections[0]);
+    }
+  }
+
+  function removeDoc(index: number) {
+    setDocSlots((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function buildFormData(brandModel?: { brand: string; model: string }): FormData {
     const fd = new FormData();
     fd.append('brand', (brandModel?.brand ?? form.brand).trim());
@@ -416,7 +478,7 @@ export function CarForm({ car }: { car?: Car }) {
     }
     if (form.driveType) fd.append('driveType', form.driveType);
     if (form.color) fd.append('color', form.color);
-    if (form.imported) fd.append('imported', form.imported);
+    fd.append('imported', 'local');
     if (form.motorCondition) fd.append('motorCondition', form.motorCondition);
     if (form.electricalCondition) fd.append('electricalCondition', form.electricalCondition);
     if (form.oilCondition) fd.append('oilCondition', form.oilCondition);
@@ -439,6 +501,9 @@ export function CarForm({ car }: { car?: Car }) {
     }
     for (const s of slots) {
       if (s.type === 'new') fd.append('images', s.file);
+    }
+    for (const d of docSlots) {
+      if (d.type === 'new') fd.append('documents', d.file);
     }
     return fd;
   }
@@ -515,6 +580,53 @@ export function CarForm({ car }: { car?: Car }) {
           {error}
         </div>
       )}
+
+      <div className="rounded-xl border border-dark-700/80 bg-dark-800/30 p-4">
+        <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
+          <FileText className="w-3.5 h-3.5" />
+          وثائق السيارة (صور أو PDF — اختياري)
+          {docSlots.length > 0 && (
+            <span className="text-primary-400 font-medium">— {docSlots.length} ملف</span>
+          )}
+        </label>
+        <input
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.pdf"
+          disabled={docSlots.length >= MAX_DOCUMENTS}
+          className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-dark-700 file:text-white hover:file:bg-dark-600"
+          onChange={(e) => {
+            addDocuments(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <p className="text-[11px] text-slate-500 mt-1.5">
+          JPG أو PNG أو PDF — حتى {MAX_DOCUMENTS} ملفات، 10MB لكل ملف. الوارد دائماً: محلي.
+        </p>
+        {docSlots.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {docSlots.map((doc, i) => (
+              <li
+                key={doc.id}
+                className="flex items-center justify-between gap-2 rounded-lg bg-dark-900 border border-dark-700 px-3 py-2 text-sm"
+              >
+                <span className="text-slate-300 truncate flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary-400 shrink-0" />
+                  {doc.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeDoc(i)}
+                  className="text-red-400 hover:text-red-300 shrink-0"
+                  aria-label="حذف الوثيقة"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="rounded-xl border border-primary-500/30 bg-primary-500/5 p-4">
         <p className="text-sm font-semibold text-primary-300 mb-2">تقييم السعر (AI) — مباشر</p>
@@ -841,20 +953,6 @@ export function CarForm({ car }: { car?: Car }) {
           >
             {CAR_COLORS.map((c) => (
               <option key={c.value || 'color-empty'} value={c.value}>
-                {c.labelAr}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">وارد السيارة</label>
-          <select
-            className="select-field"
-            value={form.imported}
-            onChange={(e) => update('imported', e.target.value)}
-          >
-            {IMPORTED_OPTIONS.map((c) => (
-              <option key={c.value || 'imported-empty'} value={c.value}>
                 {c.labelAr}
               </option>
             ))}

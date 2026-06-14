@@ -23,6 +23,7 @@ import {
 import { clsx } from 'clsx';
 
 const SORT_OPTIONS = [
+  { value: 'aiMatch-asc', label: 'الأنسب سعراً (AI) — موصى به' },
   { value: 'createdAt-desc', label: 'الأحدث أولاً' },
   { value: 'price-asc', label: 'السعر: الأقل أولاً' },
   { value: 'price-desc', label: 'السعر: الأعلى أولاً' },
@@ -31,8 +32,7 @@ const SORT_OPTIONS = [
   { value: 'rating-desc', label: 'الأعلى تقييماً' },
 ];
 
-/** الأنواع الأساسية المطلوبة (SUV, Sports, Pickup, Sedan) تظهر أولاً. */
-const TYPE_ORDER = ['suv', 'sports', 'truck', 'sedan'];
+const TYPE_ORDER = ['suv', 'coupe', 'hatchback', 'truck', 'sedan'];
 const TYPE_OPTIONS = [
   ...TYPE_ORDER
     .map((v) => CATEGORIES.find((c) => c.value === v))
@@ -45,8 +45,8 @@ const DEFAULT_FILTERS: QueryParams = {
   category: '',
   page: 1,
   limit: 12,
-  sortBy: 'createdAt',
-  sortOrder: 'desc',
+  sortBy: 'aiMatch',
+  sortOrder: 'asc',
 };
 
 function toNum(v: string): number | undefined {
@@ -58,13 +58,26 @@ function toNum(v: string): number | undefined {
 function CarsPageInner() {
   const searchParams = useSearchParams();
 
-  const [filters, setFilters] = useState<QueryParams>({
-    ...DEFAULT_FILTERS,
-    search: searchParams.get('search') || '',
-    category: searchParams.get('category') || '',
+  const [filters, setFilters] = useState<QueryParams>(() => {
+    const sortParam = searchParams.get('sort') || 'aiMatch-asc';
+    const [sortBy, sortOrder] = sortParam.split('-');
+    return {
+      ...DEFAULT_FILTERS,
+      search: searchParams.get('search') || '',
+      category: searchParams.get('category') || '',
+      brand: searchParams.get('brand') || '',
+      condition: searchParams.get('condition') || '',
+      minPrice: toNum(searchParams.get('minPrice') || ''),
+      maxPrice: toNum(searchParams.get('maxPrice') || ''),
+      sortBy: sortBy || 'aiMatch',
+      sortOrder: sortOrder || 'asc',
+    };
   });
 
-  const [sort, setSort] = useState('createdAt-desc');
+  const [sort, setSort] = useState(() => {
+    const sortParam = searchParams.get('sort') || 'aiMatch-asc';
+    return SORT_OPTIONS.some((o) => o.value === sortParam) ? sortParam : 'aiMatch-asc';
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   /** فاخرة = جميع السيارات فوق 30K (بدون تقييد بالفئة). */
@@ -120,6 +133,58 @@ function CarsPageInner() {
           <p className="text-slate-400">
             {meta ? `${meta.total.toLocaleString('ar')} سيارة متاحة` : 'جاري التحميل...'}
           </p>
+        </div>
+
+        {/* فلترة سريعة */}
+        <div className="card p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">الماركة / الشركة</label>
+            <select
+              className="select-field"
+              value={filters.brand || ''}
+              onChange={(e) => updateFilter('brand', e.target.value)}
+            >
+              <option value="">كل الماركات</option>
+              {(brandsData || []).map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">الحالة</label>
+            <select
+              className="select-field"
+              value={filters.condition || ''}
+              onChange={(e) => updateFilter('condition', e.target.value)}
+            >
+              <option value="">الكل</option>
+              {CONDITIONS.map((c) => (
+                <option key={c.value} value={c.value}>{c.labelAr}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">السعر من ($)</label>
+            <input
+              type="number"
+              className="input-field"
+              min={0}
+              placeholder="0"
+              value={filters.minPrice ?? ''}
+              onChange={(e) => updateFilter('minPrice', toNum(e.target.value))}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">السعر إلى ($)</label>
+            <input
+              type="number"
+              className="input-field"
+              min={0}
+              placeholder="أي سعر"
+              value={filters.maxPrice ?? ''}
+              onChange={(e) => updateFilter('maxPrice', toNum(e.target.value))}
+            />
+          </div>
         </div>
 
         {/* Search + Type + Sort + Advanced toggle */}

@@ -4,10 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
-import { carsApi, sparePartsApi } from '../../../lib/api';
-import { useAuthStore } from '../../../lib/auth-store';
-import { CarCard } from '../../../components/cars/CarCard';
-import { SparePartCard } from '../../../components/cars/SparePartCard';
+import { carsApi } from '../../../lib/api';
 import { useCompareStore, useFavoritesStore } from '../../../lib/store';
 import {
   formatPrice,
@@ -25,7 +22,7 @@ import { AiPriceLabelBadge } from '../../../components/cars/AiPriceLabelBadge';
 import {
   Heart, GitCompare, Fuel, Zap, Shield, Star, Eye, Users,
   Gauge, Settings, Ruler, Package, ChevronLeft, CheckCircle2,
-  Wrench, Calendar, Pencil, Trash2, ZoomIn
+  Calendar, Pencil, Trash2, ZoomIn
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { resolveCarImagesUrl, resolveCarImageUrl } from '../../../lib/image-url';
@@ -47,12 +44,6 @@ export default function CarDetailPage() {
   const { data: similarCars } = useQuery({
     queryKey: ['similar', id],
     queryFn: () => carsApi.getSimilar(id).then(r => r.data),
-    enabled: !!car,
-  });
-
-  const { data: spareParts } = useQuery({
-    queryKey: ['spare-parts-car', id],
-    queryFn: () => sparePartsApi.getByCar(id).then(r => r.data),
     enabled: !!car,
   });
 
@@ -425,26 +416,6 @@ export default function CarDetailPage() {
             </div>
           ) : null)}
         </section>
-
-        {/* Spare Parts */}
-        {spareParts && (spareParts as any[]).length > 0 && (
-          <section className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Wrench className="w-6 h-6 text-primary-400" />
-                قطع الغيار المتوافقة
-              </h2>
-              <Link href={`/spare-parts?brand=${car.brand}`} className="text-primary-400 hover:text-primary-300 text-sm flex items-center gap-1">
-                عرض الكل <ChevronLeft className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {(spareParts as any[]).slice(0, 4).map((part: any) => (
-                <SparePartCard key={part._id} part={part} />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Similar Cars */}
         {similarCars && (similarCars as any[]).length > 0 && (
