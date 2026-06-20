@@ -27,6 +27,8 @@ import {
 import { clsx } from 'clsx';
 import { resolveCarImagesUrl, resolveCarImageUrl } from '../../../lib/image-url';
 import { ImageLightbox } from '../../../components/ui/ImageLightbox';
+import { CarCard } from '@/components/cars/CarCard';
+import { useAuthStore } from '@/lib/auth-store';
 
 export default function CarDetailPage() {
   const params = useParams();

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { carsApi } from '../../../../lib/api';
 import { useAuthStore } from '../../../../lib/auth-store';
 import { useAuthHydrated } from '../../../../hooks/useAuthHydrated';
+import { validateCarImageFile } from '../../../../lib/car-image-upload';
 import { CATEGORIES } from '../../../../types';
 import { ChevronLeft, ImageIcon, Loader2, Save, Info, X, Star } from 'lucide-react';
 
@@ -23,11 +23,43 @@ const defaultForm = {
 
 type FormState = typeof defaultForm;
 
+type ImageSlot = { id: string; file: File; preview: string };
+
+let slotIdSeq = 0;
+function newSlotId() {
+  slotIdSeq += 1;
+  return `seller-slot-${Date.now()}-${slotIdSeq}`;
+}
+
+function appendImageSlots(prev: ImageSlot[], files: File[]): { next: ImageSlot[]; added: number } {
+  const next = [...prev];
+  let added = 0;
+  for (const file of files) {
+    if (next.length >= MAX_IMAGES) break;
+    const duplicate = next.some(
+      (s) =>
+        s.file.name === file.name &&
+        s.file.size === file.size &&
+        s.file.lastModified === file.lastModified,
+    );
+    if (duplicate) continue;
+    next.push({
+      id: newSlotId(),
+      file,
+      preview: URL.createObjectURL(file),
+    });
+    added += 1;
+  }
+  return { next, added };
+}
+
 export default function SellerNewCarPage() {
   const router = useRouter();
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -39,49 +71,74 @@ export default function SellerNewCarPage() {
   }, [hydrated, token, user, router]);
 
   const [form, setForm] = useState<FormState>(defaultForm);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [slots, setSlots] = useState<ImageSlot[]>([]);
   const [error, setError] = useState('');
+  const [imageHighlight, setImageHighlight] = useState(false);
   const [loading, setLoading] = useState(false);
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
 
-  /** Re-create object URLs whenever the file list changes; revoke them on cleanup to prevent leaks. */
   useEffect(() => {
-    if (imageFiles.length === 0) {
-      setPreviews([]);
-      return;
-    }
-    const urls = imageFiles.map((f) => URL.createObjectURL(f));
-    setPreviews(urls);
     return () => {
-      urls.forEach((u) => URL.revokeObjectURL(u));
+      slotsRef.current.forEach((s) => URL.revokeObjectURL(s.preview));
     };
-  }, [imageFiles]);
+  }, []);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function addFiles(incoming: FileList | null) {
-    if (!incoming || incoming.length === 0) return;
-    setImageFiles((prev) => {
-      const next = [...prev];
-      for (const f of Array.from(incoming)) {
-        if (next.length >= MAX_IMAGES) break;
-        // De-dupe by name+size to avoid accidental double-add.
-        if (next.some((x) => x.name === f.name && x.size === f.size)) continue;
-        next.push(f);
+    if (!incoming?.length) return;
+
+    const rejections: string[] = [];
+    const toAdd: File[] = [];
+    for (const file of Array.from(incoming)) {
+      const validationErr = validateCarImageFile(file);
+      if (validationErr) {
+        rejections.push(validationErr);
+        continue;
       }
-      return next;
-    });
+      toAdd.push(file);
+    }
+
+    if (toAdd.length === 0) {
+      setError(rejections[0] || 'لم تُضف أي صورة صالحة');
+      return;
+    }
+
+    const { next, added } = appendImageSlots(slots, toAdd);
+    setSlots(next);
+
+    if (added > 0) {
+      setImageHighlight(false);
+      setError(
+        rejections.length > 0
+          ? `تمت إضافة ${added} صورة — تم تجاهل ${rejections.length} ملف: ${rejections[0]}`
+          : '',
+      );
+    } else if (slots.length >= MAX_IMAGES) {
+      setError(`الحد الأقصى ${MAX_IMAGES} صور`);
+    } else {
+      setError('الصور المختارة مضافة مسبقاً');
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   }
 
   function removeAt(index: number) {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setSlots((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function makePrimary(index: number) {
-    setImageFiles((prev) => {
-      if (index <= 0 || index >= prev.length) return prev;
+    if (index <= 0) return;
+    setSlots((prev) => {
       const next = [...prev];
       const [pick] = next.splice(index, 1);
       next.unshift(pick);
@@ -92,8 +149,11 @@ export default function SellerNewCarPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (imageFiles.length === 0) {
+
+    if (slots.length === 0) {
       setError('يرجى اختيار صورة واحدة على الأقل للسيارة');
+      setImageHighlight(true);
+      imageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     if (!form.brand.trim() || !form.model.trim()) {
@@ -104,6 +164,7 @@ export default function SellerNewCarPage() {
       setError('السعر مطلوب');
       return;
     }
+
     setLoading(true);
     try {
       const fd = new FormData();
@@ -113,17 +174,24 @@ export default function SellerNewCarPage() {
       fd.append('price', String(form.price));
       fd.append('category', form.category);
       if (form.description.trim()) fd.append('description', form.description.trim());
-      // Backend uses `images[]`. The first one becomes the main imageUrl, the rest fill `images`.
-      for (const file of imageFiles) {
-        fd.append('images', file);
+      for (const slot of slots) {
+        fd.append('images', slot.file);
       }
       await carsApi.submitBySeller(fd);
       router.push('/seller/cars');
       router.refresh();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(' ') : msg || 'حدث خطأ');
+      const ax = err as {
+        code?: string;
+        message?: string;
+        response?: { data?: { message?: string | string[] } };
+      };
+      if (ax.code === 'ECONNABORTED') {
+        setError('انتهت مهلة الرفع — قلّل عدد الصور أو حجمها (5MB لكل صورة)');
+        return;
+      }
+      const msg = ax.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(' ') : msg || ax.message || 'حدث خطأ');
     } finally {
       setLoading(false);
     }
@@ -150,7 +218,7 @@ export default function SellerNewCarPage() {
         </Link>
         <h1 className="text-2xl font-bold text-white mb-2">إضافة سيارة للبيع</h1>
         <p className="text-slate-400 text-sm mb-6">
-          املأ المعلومات الأساسية فقط — سيقوم المسؤول بمراجعة السيارة وإكمال التفاصيل التقنية (حالة المحرك، الكهرباء، الزيت، …) قبل نشرها.
+          املأ المعلومات الأساسية فقط — سيقوم المسؤول بمراجعة السيارة وإكمال التفاصيل التقنية قبل نشرها.
         </p>
 
         <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm px-4 py-3 mb-6 flex items-start gap-2">
@@ -160,12 +228,91 @@ export default function SellerNewCarPage() {
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} className="card p-6 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag !== 'TEXTAREA') e.preventDefault();
+          }}
+          className="card p-6 space-y-5"
+        >
           {error && (
             <div className="rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3">
               {error}
             </div>
           )}
+
+          <div
+            ref={imageSectionRef}
+            className={`rounded-xl p-4 transition-colors ${
+              imageHighlight
+                ? 'ring-2 ring-red-500/50 bg-red-500/5'
+                : 'border border-dark-700/80 bg-dark-800/30'
+            }`}
+          >
+            <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
+              <ImageIcon className="w-3.5 h-3.5" />
+              صور السيارة (مطلوب — حتى {MAX_IMAGES} صور)
+              {slots.length > 0 && (
+                <span className="text-primary-400 font-medium">— {slots.length} صورة</span>
+              )}
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              disabled={slots.length >= MAX_IMAGES}
+              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-dark-700 file:text-white hover:file:bg-dark-600"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              JPEG أو PNG أو WebP أو GIF — بحد أقصى 5MB لكل صورة. يمكنك اختيار عدة صور دفعة واحدة أو إضافة دفعات
+              لاحقاً. الصورة الأولى = الرئيسية.
+            </p>
+
+            {slots.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {slots.map((slot, i) => (
+                  <div
+                    key={slot.id}
+                    className="relative aspect-[4/3] rounded-xl overflow-hidden bg-dark-900 border border-dark-700 group"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- blob preview */}
+                    <img
+                      src={slot.preview}
+                      alt={`صورة ${i + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    {i === 0 ? (
+                      <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-primary-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        <Star className="w-3 h-3" /> رئيسية
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => makePrimary(i)}
+                        className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-dark-900/80 hover:bg-primary-500/90 text-white text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
+                        title="اجعلها الصورة الرئيسية"
+                      >
+                        <Star className="w-3 h-3" /> رئيسية
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAt(i)}
+                      className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-dark-900/80 hover:bg-red-500/90 text-white flex items-center justify-center transition-colors"
+                      title="حذف"
+                      aria-label="حذف الصورة"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -225,67 +372,6 @@ export default function SellerNewCarPage() {
                 ))}
               </select>
             </div>
-
-            <div className="md:col-span-2">
-              <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
-                <ImageIcon className="w-3.5 h-3.5" />
-                صور السيارة (مطلوب — يمكنك رفع حتى {MAX_IMAGES} صور)
-              </label>
-              <input
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-dark-700 file:text-white hover:file:bg-dark-600"
-                onChange={(e) => {
-                  addFiles(e.target.files);
-                  // Reset the input so the same file(s) can be re-picked after removal.
-                  e.target.value = '';
-                }}
-                disabled={imageFiles.length >= MAX_IMAGES}
-              />
-              <p className="text-[11px] text-slate-500 mt-1.5">
-                JPEG أو PNG أو WebP أو GIF — بحد أقصى 5 ميجابايت لكل صورة. الصورة الأولى ستكون الصورة الرئيسية.
-              </p>
-
-              {previews.length > 0 && (
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {previews.map((src, i) => (
-                    <div
-                      key={src}
-                      className="relative aspect-[4/3] rounded-xl overflow-hidden bg-dark-900 border border-dark-700 group"
-                    >
-                      <Image src={src} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
-
-                      {i === 0 ? (
-                        <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-primary-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          <Star className="w-3 h-3" /> رئيسية
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => makePrimary(i)}
-                          className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-dark-900/80 hover:bg-primary-500/90 text-white text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
-                          title="اجعلها الصورة الرئيسية"
-                        >
-                          <Star className="w-3 h-3" /> اجعلها رئيسية
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => removeAt(i)}
-                        className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-dark-900/80 hover:bg-red-500/90 text-white flex items-center justify-center transition-colors"
-                        title="حذف"
-                        aria-label="حذف الصورة"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <div className="md:col-span-2">
               <label className="text-xs text-slate-400 mb-1.5 block">الوصف</label>
               <textarea
