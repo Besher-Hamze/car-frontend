@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useTranslations } from 'next-intl';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -16,6 +17,7 @@ type ImageLightboxProps = {
 };
 
 export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
+  const t = useTranslations('common');
   const [zoom, setZoom] = useState(1);
 
   const zoomIn = useCallback(() => {
@@ -58,13 +60,13 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
       className="fixed inset-0 z-[100] flex items-center justify-center"
       role="dialog"
       aria-modal="true"
-      aria-label="معاينة الصورة"
+      aria-label={t('lightboxPreview')}
     >
       <button
         type="button"
         className="absolute inset-0 bg-black/85 backdrop-blur-[2px] cursor-zoom-out"
         onClick={onClose}
-        aria-label="إغلاق المعاينة"
+        aria-label={t('lightboxClosePreview')}
       />
 
       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between gap-3 pointer-events-none">
@@ -78,7 +80,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
             }}
             disabled={zoom <= MIN_ZOOM}
             className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            aria-label="تصغير"
+            aria-label={t('lightboxZoomOut')}
           >
             <ZoomOut className="w-5 h-5" />
           </button>
@@ -93,7 +95,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
             }}
             disabled={zoom >= MAX_ZOOM}
             className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            aria-label="تكبير"
+            aria-label={t('lightboxZoomIn')}
           >
             <ZoomIn className="w-5 h-5" />
           </button>
@@ -105,7 +107,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
             }}
             disabled={zoom === 1}
             className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            aria-label="إعادة ضبط التكبير"
+            aria-label={t('lightboxResetZoom')}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -116,7 +118,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
               onClose();
             }}
             className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-red-500/30 hover:border-red-400/40 transition-colors flex items-center justify-center"
-            aria-label="إغلاق"
+            aria-label={t('lightboxClose')}
           >
             <X className="w-5 h-5" />
           </button>

@@ -3,10 +3,11 @@ import { useCompareStore } from '../../lib/store';
 import { resolveCarImageUrl } from '../../lib/image-url';
 import { X, Scale, GitCompare } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { clsx } from 'clsx';
+import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 
 export function CompareBar() {
+  const t = useTranslations('common');
   const { selectedCars, removeCar, clearAll } = useCompareStore();
 
   if (selectedCars.length === 0) return null;
@@ -16,7 +17,7 @@ export function CompareBar() {
       <div className="bg-dark-900/95 backdrop-blur-xl border border-dark-700 rounded-2xl shadow-2xl shadow-black/40 p-4 flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Scale className="w-5 h-5 text-primary-400" />
-          <span className="text-white text-sm font-semibold">للمقارنة</span>
+          <span className="text-white text-sm font-semibold">{t('forCompare')}</span>
           <span className="badge badge-orange text-xs">{selectedCars.length}/4</span>
         </div>
 
@@ -57,12 +58,13 @@ export function CompareBar() {
               href="/compare"
               className="btn-primary text-sm py-2 px-4 whitespace-nowrap"
             >
-              قارن الآن
+              {t('compareNow')}
             </Link>
           )}
           <button
             onClick={clearAll}
             className="w-9 h-9 rounded-xl bg-dark-800 border border-dark-700 flex items-center justify-center text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all"
+            aria-label={t('clearAll')}
           >
             <X className="w-4 h-4" />
           </button>

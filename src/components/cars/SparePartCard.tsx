@@ -1,5 +1,6 @@
 'use client';
-import { SparePart, formatPrice } from '../../types';
+import { useTranslations } from 'next-intl';
+import { SparePart, formatPrice } from '@/types';
 import { Star, Package, Shield } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -8,6 +9,8 @@ interface SparePartCardProps {
 }
 
 export function SparePartCard({ part }: SparePartCardProps) {
+  const t = useTranslations('common');
+
   const qualityColor = {
     original: 'badge-green',
     oem: 'badge-blue',
@@ -15,14 +18,13 @@ export function SparePartCard({ part }: SparePartCardProps) {
   }[part.quality] || 'badge-orange';
 
   const qualityLabel = {
-    original: 'أصلي',
+    original: t('qualityOriginal'),
     oem: 'OEM',
-    aftermarket: 'بديل',
+    aftermarket: t('qualityAftermarket'),
   }[part.quality] || part.quality;
 
   return (
     <div className="card-hover p-4 flex flex-col gap-3">
-      {/* Image */}
       <div className="h-28 rounded-xl bg-dark-900 flex items-center justify-center text-4xl overflow-hidden relative">
         {part.imageUrl ? (
           <img src={part.imageUrl} alt={part.nameAr} className="w-full h-full object-cover" />
@@ -34,26 +36,26 @@ export function SparePartCard({ part }: SparePartCardProps) {
         </div>
       </div>
 
-      {/* Info */}
       <div>
         <h3 className="text-white font-semibold text-sm leading-tight">{part.nameAr}</h3>
-        <p className="text-slate-500 text-xs mt-0.5">{part.name} • {part.brand}</p>
+        <p className="text-slate-500 text-xs mt-0.5">
+          {part.name} • {part.brand}
+        </p>
       </div>
 
-      {/* Stock */}
       <div className="flex items-center gap-2 text-xs">
         <div className={clsx('w-2 h-2 rounded-full', part.stock > 0 ? 'bg-emerald-400' : 'bg-red-400')} />
         <span className={part.stock > 0 ? 'text-emerald-400' : 'text-red-400'}>
-          {part.stock > 0 ? `متوفر (${part.stock})` : 'غير متوفر'}
+          {part.stock > 0 ? t('inStock', { count: part.stock }) : t('outOfStock')}
         </span>
         {part.warranty && (
-          <span className="flex items-center gap-1 text-slate-500 mr-auto">
-            <Shield className="w-3 h-3" />{part.warranty}
+          <span className="flex items-center gap-1 text-slate-500 ms-auto">
+            <Shield className="w-3 h-3" />
+            {part.warranty}
           </span>
         )}
       </div>
 
-      {/* Price + Rating */}
       <div className="flex items-center justify-between pt-2 border-t border-dark-700">
         <span className="text-primary-400 font-bold">{formatPrice(part.price, part.currency)}</span>
         {part.rating > 0 && (

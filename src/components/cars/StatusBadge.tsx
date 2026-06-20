@@ -1,24 +1,24 @@
+'use client';
+
 import clsx from 'clsx';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export type CarStatus = 'pending' | 'published' | 'rejected' | undefined | null;
 
 const STATUS_CONFIG: Record<
   'pending' | 'published' | 'rejected',
-  { label: string; className: string; icon: typeof Clock }
+  { className: string; icon: typeof Clock }
 > = {
   pending: {
-    label: 'قيد المراجعة',
     className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
     icon: Clock,
   },
   published: {
-    label: 'منشورة',
     className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     icon: CheckCircle2,
   },
   rejected: {
-    label: 'مرفوضة',
     className: 'bg-red-500/15 text-red-300 border-red-500/30',
     icon: XCircle,
   },
@@ -31,6 +31,7 @@ export function StatusBadge({
   status: CarStatus;
   className?: string;
 }) {
+  const t = useTranslations('options.status');
   /** Legacy/admin-created cars without an explicit status are shown as published. */
   const key = (status ?? 'published') as keyof typeof STATUS_CONFIG;
   const cfg = STATUS_CONFIG[key] ?? STATUS_CONFIG.published;
@@ -44,7 +45,7 @@ export function StatusBadge({
       )}
     >
       <Icon className="w-3 h-3" />
-      {cfg.label}
+      {t(key)}
     </span>
   );
 }

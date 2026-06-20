@@ -1,21 +1,17 @@
 'use client';
-import Link from 'next/link';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import { Car, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store, SlidersHorizontal } from 'lucide-react';
-import { useCompareStore } from '../../lib/store';
-import { useAuthStore } from '../../lib/auth-store';
+import { useCompareStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { clsx } from 'clsx';
 
-const navLinks = [
-  { href: '/', label: 'الرئيسية', icon: Home },
-  { href: '/cars', label: 'السيارات', icon: Car },
-  { href: '/compare', label: 'المقارنة', icon: Scale },
-  { href: '/cars?sort=aiMatch-asc', label: 'فلترة', icon: SlidersHorizontal },
-];
-
 export function Navbar() {
+  const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -23,11 +19,25 @@ export function Navbar() {
   const { selectedCars } = useCompareStore();
   const { user, token, logout } = useAuthStore();
 
+  const navLinks = [
+    { href: '/', label: t('home'), icon: Home },
+    { href: '/cars', label: t('cars'), icon: Car },
+    { href: '/compare', label: t('compare'), icon: Scale },
+    { href: '/cars?sort=aiMatch-asc', label: t('filter'), icon: SlidersHorizontal },
+  ];
+
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handler);
     return () => window.removeEventListener('scroll', handler);
   }, []);
+
+  const roleLabel =
+    user?.role === 'admin'
+      ? tCommon('admin')
+      : user?.role === 'seller'
+        ? tCommon('seller')
+        : tCommon('user');
 
   return (
     <header
@@ -35,12 +45,11 @@ export function Navbar() {
         'fixed top-0 inset-x-0 z-50 transition-all duration-300',
         scrolled
           ? 'bg-dark-900/95 backdrop-blur-xl border-b border-dark-700/50 shadow-xl shadow-black/20'
-          : 'bg-transparent'
+          : 'bg-transparent',
       )}
     >
       <div className="page-container">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative w-11 h-11 rounded-xl bg-white/95 flex items-center justify-center shadow-lg shadow-black/20 group-hover:scale-105 transition-transform overflow-hidden p-1">
               <Image
@@ -54,11 +63,10 @@ export function Navbar() {
             </div>
             <div>
               <span className="font-display font-bold text-lg text-white leading-none">AutoArabia</span>
-              <span className="block text-[10px] text-slate-500 leading-none">منصة السيارات</span>
+              <span className="block text-[10px] text-slate-500 leading-none">{t('platformTagline')}</span>
             </div>
           </Link>
 
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map(({ href, label, icon: Icon }) => (
               <Link
@@ -66,9 +74,9 @@ export function Navbar() {
                 href={href}
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
-                  pathname === href
+                  pathname === href || (href !== '/' && pathname.startsWith(href.split('?')[0]))
                     ? 'bg-primary-500/15 text-primary-400 border border-primary-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-dark-800'
+                    : 'text-slate-400 hover:text-white hover:bg-dark-800',
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -82,15 +90,15 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* CTA + Mobile */}
           <div className="flex items-center gap-2 md:gap-3">
+            <LanguageSwitcher className="hidden sm:flex" />
             {user?.role === 'seller' && (
               <Link
                 href="/seller/cars"
                 className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-primary-500/30 text-primary-400 hover:bg-primary-500/10 transition-colors"
               >
                 <Store className="w-4 h-4" />
-                سياراتي
+                {t('myCars')}
               </Link>
             )}
             {user?.role === 'admin' && (
@@ -99,7 +107,7 @@ export function Navbar() {
                 className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-colors"
               >
                 <Shield className="w-4 h-4" />
-                الإدارة
+                {t('admin')}
               </Link>
             )}
             {token && user ? (
@@ -107,9 +115,7 @@ export function Navbar() {
                 <span className="text-xs text-slate-500 max-w-[120px] truncate" title={user.email}>
                   {user.name || user.email}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-dark-700 text-slate-400">
-                  {user.role === 'admin' ? 'مسؤول' : user.role === 'seller' ? 'بائع' : 'مستخدم'}
-                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-dark-700 text-slate-400">{roleLabel}</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -119,7 +125,7 @@ export function Navbar() {
                   className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
-                  خروج
+                  {t('logout')}
                 </button>
               </div>
             ) : (
@@ -129,19 +135,19 @@ export function Navbar() {
                   className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl text-slate-300 hover:text-white hover:bg-dark-800 transition-colors"
                 >
                   <LogIn className="w-4 h-4" />
-                  دخول
+                  {t('login')}
                 </Link>
                 <Link
                   href="/register"
                   className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-dark-600 text-slate-300 hover:border-primary-500/40 hover:text-primary-400 transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
-                  تسجيل
+                  {t('register')}
                 </Link>
               </div>
             )}
             <Link href="/cars" className="hidden md:flex btn-primary text-sm py-2 px-5">
-              استعرض السيارات
+              {t('browseCars')}
             </Link>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -153,10 +159,10 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileOpen && (
         <div className="md:hidden bg-dark-900/98 backdrop-blur-xl border-t border-dark-700/50">
           <nav className="page-container py-4 flex flex-col gap-1">
+            <LanguageSwitcher className="mb-2 sm:hidden self-start" />
             {navLinks.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
@@ -166,7 +172,7 @@ export function Navbar() {
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
                   pathname === href
                     ? 'bg-primary-500/15 text-primary-400'
-                    : 'text-slate-400 hover:text-white hover:bg-dark-800'
+                    : 'text-slate-400 hover:text-white hover:bg-dark-800',
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -180,7 +186,7 @@ export function Navbar() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-primary-400 hover:bg-dark-800"
               >
                 <Store className="w-4 h-4" />
-                سياراتي
+                {t('myCars')}
               </Link>
             )}
             {user?.role === 'admin' && (
@@ -190,7 +196,7 @@ export function Navbar() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-amber-400 hover:bg-dark-800"
               >
                 <Shield className="w-4 h-4" />
-                إدارة السيارات
+                {t('adminCars')}
               </Link>
             )}
             {token && user ? (
@@ -201,10 +207,10 @@ export function Navbar() {
                   setMobileOpen(false);
                   router.refresh();
                 }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-dark-800 w-full text-right"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-dark-800 w-full text-start"
               >
                 <LogOut className="w-4 h-4" />
-                تسجيل الخروج ({user.email})
+                {t('logoutFull', { email: user.email })}
               </button>
             ) : (
               <div className="flex flex-col gap-1 pt-2 border-t border-dark-700/50">
@@ -214,7 +220,7 @@ export function Navbar() {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-dark-800"
                 >
                   <LogIn className="w-4 h-4" />
-                  تسجيل الدخول
+                  {t('loginFull')}
                 </Link>
                 <Link
                   href="/register"
@@ -222,7 +228,7 @@ export function Navbar() {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-primary-400 hover:bg-dark-800"
                 >
                   <UserPlus className="w-4 h-4" />
-                  إنشاء حساب
+                  {t('createAccount')}
                 </Link>
               </div>
             )}

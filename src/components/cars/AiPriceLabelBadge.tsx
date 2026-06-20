@@ -2,6 +2,7 @@
 
 import { clsx } from 'clsx';
 import { Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { Car } from '../../types';
 
 const STYLES: Record<string, string> = {
@@ -19,11 +20,18 @@ interface Props {
 }
 
 export function AiPriceLabelBadge({ car, compact, className }: Props) {
-  const label = car.ai_lable_price;
-  const labelAr = car.ai_lable_price_ar;
-  if (!label && !labelAr) return null;
+  const tCommon = useTranslations('common');
+  const tOptions = useTranslations('options');
 
-  const style = STYLES[label || 'fair'] ?? STYLES.fair;
+  const labelKey = car.ai_lable_price;
+  if (!labelKey && !car.ai_lable_price_ar) return null;
+
+  const displayLabel =
+    labelKey && tOptions.has(`aiPrice.${labelKey}`)
+      ? tOptions(`aiPrice.${labelKey}`)
+      : car.ai_lable_price_ar || labelKey;
+
+  const style = STYLES[labelKey || 'fair'] ?? STYLES.fair;
 
   if (compact) {
     return (
@@ -35,7 +43,7 @@ export function AiPriceLabelBadge({ car, compact, className }: Props) {
         )}
       >
         <Sparkles className="w-3 h-3" />
-        {labelAr || label}
+        {displayLabel}
       </span>
     );
   }
@@ -44,12 +52,12 @@ export function AiPriceLabelBadge({ car, compact, className }: Props) {
     <div className={clsx('rounded-xl border p-4', style, className)}>
       <div className="flex items-center gap-2 mb-1">
         <Sparkles className="w-4 h-4" />
-        <span className="text-xs opacity-80">تقييم السعر — AI</span>
+        <span className="text-xs opacity-80">{tCommon('aiPriceEval')}</span>
       </div>
-      <p className="text-xl font-black">{labelAr || label}</p>
+      <p className="text-xl font-black">{displayLabel}</p>
       {car.ai_fair_price != null && (
         <p className="text-sm opacity-90 mt-1">
-          السعر العادل: ${Math.round(car.ai_fair_price).toLocaleString('en-US')}
+          {tCommon('fairPrice', { price: Math.round(car.ai_fair_price).toLocaleString('en-US') })}
         </p>
       )}
     </div>

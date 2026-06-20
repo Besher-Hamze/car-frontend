@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 
 type Props = {
   label: string;
@@ -21,17 +22,22 @@ export function CatalogCombobox({
   required,
   disabled,
   placeholder,
-  emptyHint = 'لا توجد نتائج في بيانات السوق',
+  emptyHint,
 }: Props) {
+  const t = useTranslations('common');
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const resolvedPlaceholder = placeholder ?? t('catalogSearch');
+  const resolvedEmptyHint = emptyHint ?? t('catalogEmpty');
+
   const filtered = useMemo(() => {
     const q = value.trim().toLowerCase();
-    const sorted = [...options].sort((a, b) => a.localeCompare(b, 'ar'));
+    const sorted = [...options].sort((a, b) => a.localeCompare(b, locale));
     if (!q) return sorted.slice(0, 60);
     return sorted.filter((o) => o.toLowerCase().includes(q)).slice(0, 40);
-  }, [value, options]);
+  }, [value, options, locale]);
 
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
@@ -48,7 +54,7 @@ export function CatalogCombobox({
         className="input-field"
         required={required}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         value={value}
         autoComplete="off"
         onChange={(e) => {
@@ -63,7 +69,7 @@ export function CatalogCombobox({
           className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-xl border border-dark-600 bg-dark-900 shadow-xl py-1"
         >
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-slate-500">{emptyHint}</li>
+            <li className="px-3 py-2 text-sm text-slate-500">{resolvedEmptyHint}</li>
           ) : (
             filtered.map((opt) => (
               <li key={opt}>

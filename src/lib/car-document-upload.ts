@@ -1,9 +1,21 @@
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_EXT = /\.(jpe?g|png|gif|webp|pdf)$/i;
 
-export function validateCarDocumentFile(file: File): string | null {
+export type CarDocumentUploadErrorKey = 'docTooLarge' | 'unsupportedDocFormat';
+
+export type CarDocumentUploadTranslate = (
+  key: CarDocumentUploadErrorKey,
+  values?: { name: string },
+) => string;
+
+export function validateCarDocumentFile(
+  file: File,
+  translate?: CarDocumentUploadTranslate,
+): string | null {
   if (file.size > MAX_BYTES) {
-    return `«${file.name}» أكبر من 10 ميجابايت`;
+    return translate
+      ? translate('docTooLarge', { name: file.name })
+      : 'docTooLarge';
   }
   const mime = (file.type || '').toLowerCase();
   const mimeOk =
@@ -13,7 +25,9 @@ export function validateCarDocumentFile(file: File): string | null {
     mime === 'application/octet-stream';
   const extOk = ALLOWED_EXT.test(file.name);
   if (!mimeOk && !extOk) {
-    return `صيغة غير مدعومة: ${file.name} — JPG أو PNG أو PDF`;
+    return translate
+      ? translate('unsupportedDocFormat', { name: file.name })
+      : 'unsupportedDocFormat';
   }
   return null;
 }

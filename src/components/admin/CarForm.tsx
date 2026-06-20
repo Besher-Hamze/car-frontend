@@ -1,26 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { carsApi, priceEvaluationApi } from '../../lib/api';
-import { AiPriceLabelBadge } from '../cars/AiPriceLabelBadge';
-import type { Car } from '../../types';
-import { resolveCarImageUrl } from '../../lib/image-url';
+import { carsApi, priceEvaluationApi } from '@/lib/api';
+import { AiPriceLabelBadge } from '@/components/cars/AiPriceLabelBadge';
+import type { Car } from '@/types';
+import { resolveCarImageUrl } from '@/lib/image-url';
 import {
-  CATEGORIES,
-  CONDITIONS,
-  ENGINE_TYPES,
-  DRIVE_TYPES,
-  CAR_COLORS,
   parseScoreField,
   parseAccidentHistoryDropdown,
   parseEngineSmokeDropdown,
-  ENGINE_SMOKE_OPTIONS,
-  ACCIDENT_HISTORY_OPTIONS,
-} from '../../types';
-import { ScoreSlider } from '../ui/ScoreSlider';
-import { CatalogCombobox } from '../ui/CatalogCombobox';
+} from '@/types';
+import { useOptionLabels } from '@/lib/i18n-options';
+import { ScoreSlider } from '@/components/ui/ScoreSlider';
+import { CatalogCombobox } from '@/components/ui/CatalogCombobox';
 import {
   catalogBrandList,
   catalogModelList,
@@ -29,9 +24,9 @@ import {
   getCatalogSpec,
   getYearMarketPrice,
   type MarketCatalogFull,
-} from '../../lib/market-catalog';
-import { validateCarImageFile } from '../../lib/car-image-upload';
-import { validateCarDocumentFile } from '../../lib/car-document-upload';
+} from '@/lib/market-catalog';
+import { validateCarImageFile } from '@/lib/car-image-upload';
+import { validateCarDocumentFile } from '@/lib/car-document-upload';
 import { Loader2, Save, ImageIcon, X, Star, FileText } from 'lucide-react';
 
 const CAR_CURRENCY_USD = 'USD';
@@ -54,7 +49,7 @@ function buildInitialDocSlots(car?: Car): DocumentSlot[] {
     id: newSlotId(),
     type: 'existing' as const,
     url,
-    name: url.split('/').pop() || 'وثيقة',
+    name: url.split('/').pop() || '',
   }));
 }
 
@@ -134,6 +129,21 @@ type FormState = typeof defaultForm;
 
 export function CarForm({ car }: { car?: Car }) {
   const router = useRouter();
+  const t = useTranslations('common');
+  const tf = useTranslations('admin.form');
+  const tUpload = useTranslations('upload');
+  const {
+    categories,
+    conditions,
+    engineTypes,
+    transmissions,
+    driveTypes,
+    colors,
+    engineSmokeOptions,
+    accidentHistoryOptions,
+    getCategoryLabel,
+  } = useOptionLabels();
+
   const isEdit = !!car;
   const [form, setForm] = useState<FormState>(() =>
     car
@@ -208,13 +218,18 @@ export function CarForm({ car }: { car?: Car }) {
       return;
     }
     const yearPrice = getYearMarketPrice(spec, year);
-    const catAr = CATEGORIES.find((c) => c.value === spec.category)?.labelAr || spec.category;
-    setCatalogHint(
-      `سوق حلب — ${yearPrice ? `تقدير السنة: $${yearPrice.toLocaleString('en-US')}` : `متوسط: $${spec.base.toLocaleString('en-US')}`}` +
-        (spec.count ? ` · ${spec.count} إعلان` : '') +
-        (spec.min_year ? ` · سنوات: ${spec.min_year}–${spec.max_year}` : '') +
-        ` · ${catAr}`,
-    );
+    const parts = [
+      t('marketAleppo'),
+      yearPrice
+        ? t('yearEstimate', { price: yearPrice.toLocaleString('en-US') })
+        : t('marketAverage', { price: spec.base.toLocaleString('en-US') }),
+    ];
+    if (spec.count) parts.push(t('catalogListings', { count: spec.count }));
+    if (spec.min_year) {
+      parts.push(t('catalogYearRange', { min: spec.min_year, max: spec.max_year }));
+    }
+    parts.push(getCategoryLabel(spec.category));
+    setCatalogHint(parts.join(' · '));
   }
 
   function applyCatalogSpec(brandKey: string, modelKey: string, fillYear = false) {
@@ -354,7 +369,7 @@ export function CarForm({ car }: { car?: Car }) {
     const toAdd: File[] = [];
 
     for (const file of picked) {
-      const validationErr = validateCarImageFile(file);
+      const validationErr = validateCarImageFile(file, (key, values) => tUpload(key, values));
       if (validationErr) {
         rejections.push(validationErr);
         continue;
@@ -363,7 +378,7 @@ export function CarForm({ car }: { car?: Car }) {
     }
 
     if (toAdd.length === 0) {
-      setError(rejections[0] || 'لم تُضف أي صورة صالحة');
+      setError(rejections[0] || t('noValidImages'));
       return;
     }
 
@@ -373,14 +388,14 @@ export function CarForm({ car }: { car?: Car }) {
     if (added > 0) {
       setError(
         rejections.length > 0
-          ? `تمت إضافة ${added} صورة — تم تجاهل ${rejections.length} ملف: ${rejections[0]}`
+          ? t('imagesAddedPartial', { added, rejected: rejections.length, reason: rejections[0] })
           : '',
       );
       setImageHighlight(false);
     } else if (slots.length >= MAX_IMAGES) {
-      setError(`الحد الأقصى ${MAX_IMAGES} صور`);
+      setError(t('maxImagesError', { max: MAX_IMAGES }));
     } else {
-      setError('الصور المختارة مضافة مسبقاً');
+      setError(t('imagesAlreadyAdded'));
     }
   }
 
@@ -407,7 +422,7 @@ export function CarForm({ car }: { car?: Car }) {
     const rejections: string[] = [];
     const toAdd: File[] = [];
     for (const file of Array.from(incoming)) {
-      const err = validateCarDocumentFile(file);
+      const err = validateCarDocumentFile(file, (key, values) => tUpload(key, values));
       if (err) {
         rejections.push(err);
         continue;
@@ -415,7 +430,7 @@ export function CarForm({ car }: { car?: Car }) {
       toAdd.push(file);
     }
     if (!toAdd.length) {
-      setError(rejections[0] || 'لم تُضف أي وثيقة صالحة');
+      setError(rejections[0] || t('noValidDocuments'));
       return;
     }
     setDocSlots((prev) => {
@@ -516,12 +531,12 @@ export function CarForm({ car }: { car?: Car }) {
     if (catalog && !isEdit) {
       const brandKey = findCatalogBrand(catalog, form.brand);
       if (!brandKey) {
-        setError('اختر ماركة موجودة في بيانات السوق الحقيقية من القائمة');
+        setError(t('selectBrandFromList'));
         return;
       }
       const modelKey = findCatalogModel(catalog, brandKey, form.model);
       if (!modelKey) {
-        setError('اختر موديلاً موجوداً لهذه الماركة من بيانات السوق');
+        setError(t('selectModelFromList'));
         return;
       }
       brandModel = { brand: brandKey, model: modelKey };
@@ -533,7 +548,7 @@ export function CarForm({ car }: { car?: Car }) {
 
     const uploadSlots = slots.filter((s) => s.type === 'new');
     if (slots.length === 0 || (!isEdit && uploadSlots.length === 0)) {
-      setError('يرجى إضافة صورة واحدة على الأقل للسيارة');
+      setError(t('imagesRequired'));
       setImageHighlight(true);
       imageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -555,11 +570,11 @@ export function CarForm({ car }: { car?: Car }) {
         response?: { data?: { message?: string | string[] } };
       };
       if (ax.code === 'ECONNABORTED') {
-        setError('انتهت مهلة الرفع — قلّل عدد الصور أو حجمها (5MB لكل صورة) وحاول مجدداً');
+        setError(t('uploadTimeout'));
         return;
       }
       const msg = ax.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(' ') : msg || ax.message || 'حدث خطأ');
+      setError(Array.isArray(msg) ? msg.join(' ') : msg || ax.message || t('error'));
     } finally {
       setLoading(false);
     }
@@ -584,9 +599,11 @@ export function CarForm({ car }: { car?: Car }) {
       <div className="rounded-xl border border-dark-700/80 bg-dark-800/30 p-4">
         <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
           <FileText className="w-3.5 h-3.5" />
-          وثائق السيارة (صور أو PDF — اختياري)
+          {tf('documentsSection')}
           {docSlots.length > 0 && (
-            <span className="text-primary-400 font-medium">— {docSlots.length} ملف</span>
+            <span className="text-primary-400 font-medium">
+              — {tf('documentsCount', { count: docSlots.length })}
+            </span>
           )}
         </label>
         <input
@@ -601,7 +618,7 @@ export function CarForm({ car }: { car?: Car }) {
           }}
         />
         <p className="text-[11px] text-slate-500 mt-1.5">
-          JPG أو PNG أو PDF — حتى {MAX_DOCUMENTS} ملفات، 10MB لكل ملف. الوارد دائماً: محلي.
+          {tf('documentsFormatHint', { max: MAX_DOCUMENTS })}
         </p>
         {docSlots.length > 0 && (
           <ul className="mt-3 space-y-2">
@@ -612,13 +629,13 @@ export function CarForm({ car }: { car?: Car }) {
               >
                 <span className="text-slate-300 truncate flex items-center gap-2">
                   <FileText className="w-4 h-4 text-primary-400 shrink-0" />
-                  {doc.name}
+                  {doc.name || t('document')}
                 </span>
                 <button
                   type="button"
                   onClick={() => removeDoc(i)}
                   className="text-red-400 hover:text-red-300 shrink-0"
-                  aria-label="حذف الوثيقة"
+                  aria-label={t('deleteDocument')}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -629,58 +646,54 @@ export function CarForm({ car }: { car?: Car }) {
       </div>
 
       <div className="rounded-xl border border-primary-500/30 bg-primary-500/5 p-4">
-        <p className="text-sm font-semibold text-primary-300 mb-2">تقييم السعر (AI) — مباشر</p>
+        <p className="text-sm font-semibold text-primary-300 mb-2">{tf('aiEvalTitle')}</p>
         {evalLoading && (
-          <p className="text-slate-500 text-sm">جاري التقييم...</p>
+          <p className="text-slate-500 text-sm">{tf('aiEvalLoading')}</p>
         )}
         {!evalLoading && liveEval && <AiPriceLabelBadge car={liveEval} />}
         {!evalLoading && !liveEval && form.price > 0 && (
-          <p className="text-slate-500 text-sm">أكمل الماركة والموديل والسعر لعرض التقييم</p>
+          <p className="text-slate-500 text-sm">{tf('aiEvalHint')}</p>
         )}
       </div>
 
       {catalog && (
         <p className="text-[11px] text-slate-500 -mt-2">
-          الماركة والموديل من بيانات السوق الحقيقية ({brandOptions.length} ماركة)
+          {tf('catalogMarketNote', { count: brandOptions.length })}
         </p>
       )}
       {catalogLoading && (
-        <p className="text-[11px] text-slate-500 -mt-2">جاري تحميل قائمة الماركات والموديلات...</p>
+        <p className="text-[11px] text-slate-500 -mt-2">{tf('catalogLoading')}</p>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {catalog ? (
           <>
             <CatalogCombobox
-              label="الماركة"
+              label={tf('brand')}
               required
               value={form.brand}
               options={brandOptions}
               onChange={setBrand}
-              placeholder="ابحث أو اختر ماركة..."
-              emptyHint="لا توجد ماركة مطابقة في البيانات"
+              placeholder={tf('brandPlaceholder')}
+              emptyHint={tf('brandEmptyHint')}
             />
             <CatalogCombobox
-              label="الموديل"
+              label={tf('model')}
               required
               value={form.model}
               options={modelOptions}
               onChange={setModel}
               disabled={!resolvedBrand}
-              placeholder={
-                resolvedBrand ? 'ابحث أو اختر موديلاً...' : 'اختر الماركة أولاً'
-              }
+              placeholder={resolvedBrand ? tf('modelPlaceholder') : tf('modelSelectBrandFirst')}
               emptyHint={
-                resolvedBrand
-                  ? 'لا يوجد موديل مطابق لهذه الماركة'
-                  : 'اختر ماركة من القائمة أولاً'
+                resolvedBrand ? tf('modelEmptyHint') : tf('modelSelectBrandFirst')
               }
             />
           </>
         ) : (
           <>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">الماركة</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{tf('brand')}</label>
               <input
                 className="input-field"
                 required
@@ -689,7 +702,7 @@ export function CarForm({ car }: { car?: Car }) {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">الموديل</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{tf('model')}</label>
               <input
                 className="input-field"
                 required
@@ -705,7 +718,7 @@ export function CarForm({ car }: { car?: Car }) {
           </div>
         )}
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">السنة</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('year')}</label>
           <input
             type="number"
             className="input-field"
@@ -717,7 +730,7 @@ export function CarForm({ car }: { car?: Car }) {
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">السعر (دولار أمريكي USD)</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('price')}</label>
           <input
             type="number"
             className="input-field"
@@ -738,9 +751,12 @@ export function CarForm({ car }: { car?: Car }) {
         >
           <label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-2">
             <ImageIcon className="w-3.5 h-3.5" />
-            صور السيارة {isEdit ? '(أضف أو احذف أو رتّب)' : `(مطلوب — حتى ${MAX_IMAGES} صور)`}
+            {t('imagesSection')}{' '}
+            {isEdit ? t('imagesEditHint') : t('imagesNewHint', { max: MAX_IMAGES })}
             {slots.length > 0 && (
-              <span className="text-primary-400 font-medium">— {slots.length} صورة</span>
+              <span className="text-primary-400 font-medium">
+                — {t('imagesCount', { count: slots.length })}
+              </span>
             )}
           </label>
           <input
@@ -755,8 +771,8 @@ export function CarForm({ car }: { car?: Car }) {
             }}
           />
           <p className="text-[11px] text-slate-500 mt-1.5">
-            JPEG أو PNG أو WebP أو GIF — بحد أقصى 5 ميجابايت لكل صورة. الصورة الأولى هي الرئيسية.
-            {!isEdit && slots.length === 0 ? ' اختر الملفات ثم اضغط «إضافة السيارة» في الأسفل.' : ''}
+            {t('imagesFormatHint')}
+            {!isEdit && slots.length === 0 ? ` ${t('imagesSubmitHint')}` : ''}
           </p>
           {slots.length > 0 && (
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -769,13 +785,13 @@ export function CarForm({ car }: { car?: Car }) {
                     // eslint-disable-next-line @next/next/no-img-element -- blob URLs for local previews
                     <img
                       src={slot.preview}
-                      alt={`صورة ${i + 1}`}
+                      alt={t('imageAlt', { n: i + 1 })}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : (
                     <Image
                       src={slot.preview}
-                      alt={`صورة ${i + 1}`}
+                      alt={t('imageAlt', { n: i + 1 })}
                       fill
                       className="object-cover"
                       sizes="(max-width: 640px) 50vw, 33vw"
@@ -783,24 +799,24 @@ export function CarForm({ car }: { car?: Car }) {
                   )}
                   {i === 0 ? (
                     <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-primary-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                      <Star className="w-3 h-3" /> رئيسية
+                      <Star className="w-3 h-3" /> {t('mainImage')}
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => makePrimary(i)}
                       className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 bg-dark-900/80 hover:bg-primary-500/90 text-white text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors"
-                      title="اجعلها الصورة الرئيسية"
+                      title={t('makePrimary')}
                     >
-                      <Star className="w-3 h-3" /> رئيسية
+                      <Star className="w-3 h-3" /> {t('mainImage')}
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => removeSlot(i)}
                     className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-dark-900/80 hover:bg-red-500/90 text-white flex items-center justify-center transition-colors"
-                    title="حذف"
-                    aria-label="حذف الصورة"
+                    title={t('delete')}
+                    aria-label={t('deleteImage')}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -811,61 +827,63 @@ export function CarForm({ car }: { car?: Car }) {
         </div>
 
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">الفئة</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('category')}</label>
           <select
             className="select-field"
             value={form.category}
             onChange={(e) => update('category', e.target.value)}
           >
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.value} value={c.value}>
-                {c.labelAr}
+                {c.label}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">نوع المحرك</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('engineType')}</label>
           <select
             className="select-field"
             value={form.engineType}
             onChange={(e) => update('engineType', e.target.value)}
           >
-            {ENGINE_TYPES.map((c) => (
+            {engineTypes.map((c) => (
               <option key={c.value} value={c.value}>
-                {c.labelAr}
+                {c.label}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">ناقل الحركة</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('transmission')}</label>
           <select
             className="select-field"
             value={form.transmission}
             onChange={(e) => update('transmission', e.target.value)}
           >
-            <option value="automatic">أوتوماتيك</option>
-            <option value="manual">يدوي</option>
-            <option value="cvt">CVT</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">الحالة</label>
-          <select
-            className="select-field"
-            value={form.condition}
-            onChange={(e) => update('condition', e.target.value)}
-          >
-            {CONDITIONS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.labelAr}
+            {transmissions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">عدد المقاعد</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('condition')}</label>
+          <select
+            className="select-field"
+            value={form.condition}
+            onChange={(e) => update('condition', e.target.value)}
+          >
+            {conditions.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('seating')}</label>
           <input
             type="number"
             className="input-field"
@@ -879,14 +897,12 @@ export function CarForm({ car }: { car?: Car }) {
         </div>
 
         <div className="md:col-span-2 pt-2 border-t border-dark-700/80">
-          <p className="text-sm font-semibold text-primary-400 mb-1">المواصفات التقنية (للـ AI)</p>
-          <p className="text-[11px] text-slate-500 mb-3">
-            تُملأ تلقائياً عند اختيار الموديل من السوق — يمكنك تعديلها يدوياً.
-          </p>
+          <p className="text-sm font-semibold text-primary-400 mb-1">{tf('technicalSpecsAi')}</p>
+          <p className="text-[11px] text-slate-500 mb-3">{tf('technicalSpecsAiHint')}</p>
         </div>
 
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">سعة المحرك (cc)</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('displacement')}</label>
           <input
             type="number"
             className="input-field"
@@ -901,7 +917,7 @@ export function CarForm({ car }: { car?: Car }) {
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">القوة (حصان HP)</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('horsepower')}</label>
           <input
             type="number"
             className="input-field"
@@ -916,21 +932,21 @@ export function CarForm({ car }: { car?: Car }) {
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">نظام الدفع</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('driveType')}</label>
           <select
             className="select-field"
             value={form.driveType}
             onChange={(e) => update('driveType', e.target.value)}
           >
-            {DRIVE_TYPES.map((d) => (
+            {driveTypes.map((d) => (
               <option key={d.value} value={d.value}>
-                {d.labelAr}
+                {d.label}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">عدد السلندرات</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('cylinders')}</label>
           <input
             type="number"
             className="input-field"
@@ -945,34 +961,32 @@ export function CarForm({ car }: { car?: Car }) {
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">اللون</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('color')}</label>
           <select
             className="select-field"
             value={form.color}
             onChange={(e) => update('color', e.target.value)}
           >
-            {CAR_COLORS.map((c) => (
+            {colors.map((c) => (
               <option key={c.value || 'color-empty'} value={c.value}>
-                {c.labelAr}
+                {c.label}
               </option>
             ))}
           </select>
         </div>
 
         <div className="md:col-span-2 pt-2 border-t border-dark-700/80">
-          <p className="text-sm font-semibold text-primary-400 mb-1">تفاصيل إضافية (حالة السيارة)</p>
-          <p className="text-[11px] text-slate-500 mb-3">
-            الموتور والكهرباء والزيت والشاسيه والدواليب: منزلق 0–100 (خطوة 10%) كنص. مبخوخة والقص: قوائم منسدلة.
-          </p>
+          <p className="text-sm font-semibold text-primary-400 mb-1">{tf('conditionDetailsTitle')}</p>
+          <p className="text-[11px] text-slate-500 mb-3">{tf('conditionDetailsHint')}</p>
         </div>
 
         <div>
-          <label className="text-xs text-slate-400 mb-1.5 block">شقد ماشية (كم)</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('mileage')}</label>
           <input
             type="number"
             className="input-field"
             min={0}
-            placeholder="كم المشي"
+            placeholder={t('mileagePlaceholder')}
             value={form.mileageKm === '' ? '' : form.mileageKm}
             onChange={(e) => {
               const v = e.target.value;
@@ -983,22 +997,22 @@ export function CarForm({ car }: { car?: Car }) {
 
         <div className="md:col-span-2 space-y-4">
           <ScoreSlider
-            label="موتور"
+            label={t('motor')}
             value={form.motorCondition}
             onChange={(v) => update('motorCondition', v)}
           />
           <ScoreSlider
-            label="حالة الكهرباء"
+            label={t('electrical')}
             value={form.electricalCondition}
             onChange={(v) => update('electricalCondition', v)}
           />
           <ScoreSlider
-            label="زيت"
+            label={t('oil')}
             value={form.oilCondition}
             onChange={(v) => update('oilCondition', v)}
           />
           <div>
-            <label className="text-xs text-slate-400 mb-1.5 block">مبخوخة (0 = لا، 100 = نعم)</label>
+            <label className="text-xs text-slate-400 mb-1.5 block">{tf('engineSmokeHint')}</label>
             <select
               className="select-field"
               value={form.engineSmokeLevel}
@@ -1006,20 +1020,20 @@ export function CarForm({ car }: { car?: Car }) {
                 update('engineSmokeLevel', e.target.value as FormState['engineSmokeLevel'])
               }
             >
-              {ENGINE_SMOKE_OPTIONS.map((c) => (
+              {engineSmokeOptions.map((c) => (
                 <option key={c.value || 'smoke-empty'} value={c.value}>
-                  {c.labelAr}
+                  {c.label}
                 </option>
               ))}
             </select>
           </div>
           <ScoreSlider
-            label="شاسيه"
+            label={t('chassis')}
             value={form.chassisCondition}
             onChange={(v) => update('chassisCondition', v)}
           />
           <div>
-            <label className="text-xs text-slate-400 mb-1.5 block">قصة / نص قصة / بدون قص</label>
+            <label className="text-xs text-slate-400 mb-1.5 block">{t('accidentField')}</label>
             <select
               className="select-field"
               value={form.accidentHistoryType}
@@ -1027,22 +1041,22 @@ export function CarForm({ car }: { car?: Car }) {
                 update('accidentHistoryType', e.target.value as FormState['accidentHistoryType'])
               }
             >
-              {ACCIDENT_HISTORY_OPTIONS.map((c) => (
+              {accidentHistoryOptions.map((c) => (
                 <option key={c.value || 'acc-empty'} value={c.value}>
-                  {c.labelAr}
+                  {c.label}
                 </option>
               ))}
             </select>
           </div>
           <ScoreSlider
-            label="حالة الدواليب"
+            label={t('tires')}
             value={form.tiresCondition}
             onChange={(v) => update('tiresCondition', v)}
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="text-xs text-slate-400 mb-1.5 block">الوصف</label>
+          <label className="text-xs text-slate-400 mb-1.5 block">{tf('description')}</label>
           <textarea
             className="input-field min-h-[120px]"
             value={form.description}
@@ -1054,14 +1068,14 @@ export function CarForm({ car }: { car?: Car }) {
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2 px-6">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isEdit ? 'حفظ التعديلات' : 'إضافة السيارة'}
+          {isEdit ? t('saveChanges') : t('addCar')}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
           className="px-6 py-3 rounded-xl border border-dark-600 text-slate-300 hover:bg-dark-800 transition-colors"
         >
-          إلغاء
+          {t('cancel')}
         </button>
       </div>
     </form>

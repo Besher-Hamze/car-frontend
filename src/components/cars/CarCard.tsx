@@ -1,12 +1,14 @@
 'use client';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import { Heart, GitCompare, Fuel, Zap, Users, Star, Eye } from 'lucide-react';
-import { Car, formatPrice, getCategoryLabel, getEngineTypeLabel } from '../../types';
+import { Car, formatPrice } from '../../types';
 import { AiPriceLabelBadge } from './AiPriceLabelBadge';
 import { resolveCarImageUrl } from '../../lib/image-url';
 import { useCompareStore, useFavoritesStore } from '../../lib/store';
 import { clsx } from 'clsx';
+import { useTranslations, useLocale } from 'next-intl';
+import { useOptionLabels } from '@/lib/i18n-options';
 
 interface CarCardProps {
   car: Car;
@@ -19,6 +21,9 @@ const engineIcon = (type: string) => {
 };
 
 export function CarCard({ car }: CarCardProps) {
+  const t = useTranslations('common');
+  const locale = useLocale();
+  const { getCategoryLabel, getEngineTypeLabel, getConditionLabel } = useOptionLabels();
   const { addCar, removeCar, isSelected, selectedCars } = useCompareStore();
   const { toggle, isFavorite } = useFavoritesStore();
   const selected = isSelected(car._id);
@@ -90,7 +95,7 @@ export function CarCard({ car }: CarCardProps) {
               car.condition === 'new' ? 'badge-green' :
               car.condition === 'certified' ? 'badge-blue' : 'badge-orange'
             )}>
-              {car.condition === 'new' ? 'جديد' : car.condition === 'certified' ? 'معتمد' : 'مستعمل'}
+              {getConditionLabel(car.condition)}
             </span>
           </div>
 
@@ -123,8 +128,8 @@ export function CarCard({ car }: CarCardProps) {
           <div className="grid grid-cols-3 gap-2">
             {[
               { icon: engineIcon(car.engineType), label: getEngineTypeLabel(car.engineType) },
-              { icon: <Users className="w-3.5 h-3.5" />, label: `${car.seatingCapacity || 5} مقاعد` },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: car.horsepower ? `${car.horsepower} حصان` : '—' },
+              { icon: <Users className="w-3.5 h-3.5" />, label: t('seats', { count: car.seatingCapacity || 5 }) },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: car.horsepower ? t('horsepower', { hp: car.horsepower }) : '—' },
             ].map(({ icon, label }, i) => (
               <div key={i} className="flex items-center gap-1 text-slate-400 text-xs">
                 <span className="text-primary-500">{icon}</span>
@@ -137,7 +142,9 @@ export function CarCard({ car }: CarCardProps) {
           {car.fuelConsumption && car.engineType !== 'electric' && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
               <Fuel className="w-3.5 h-3.5 text-emerald-500" />
-              <span>الاستهلاك: <span className="text-emerald-400 font-medium">{car.fuelConsumption} لتر/100كم</span></span>
+              <span>
+                {t('consumption', { value: car.fuelConsumption })}
+              </span>
             </div>
           )}
 
@@ -158,7 +165,7 @@ export function CarCard({ car }: CarCardProps) {
               )}
               <span className="flex items-center gap-1">
                 <Eye className="w-3.5 h-3.5" />
-                {car.views.toLocaleString('ar')}
+                {car.views.toLocaleString(locale)}
               </span>
             </div>
           </div>
