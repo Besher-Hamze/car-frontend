@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { carsApi } from '@/lib/api';
-import { useCompareStore, useFavoritesStore } from '@/lib/store';
+import { useCompareStore } from '@/lib/store';
 import { useOptionLabels } from '@/lib/i18n-options';
 import {
   formatPrice,
@@ -18,9 +18,9 @@ import {
 import { ConditionScoreBar } from '@/components/cars/ConditionScoreBar';
 import { AiPriceLabelBadge } from '@/components/cars/AiPriceLabelBadge';
 import {
-  Heart, GitCompare, Fuel, Zap, Shield, Star, Eye, Users,
-  Gauge, Settings, Ruler, Package, ChevronLeft, CheckCircle2,
-  Calendar, Pencil, Trash2, ZoomIn
+  GitCompare, Fuel, Zap, Shield, Star, Eye, Users,
+  Gauge, Settings, ChevronLeft, CheckCircle2,
+  Calendar, Pencil, Trash2, ZoomIn, ShoppingCart, Cog
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { resolveCarImagesUrl, resolveCarImageUrl } from '@/lib/image-url';
@@ -35,6 +35,7 @@ export default function CarDetailPage() {
   const locale = useLocale();
   const t = useTranslations('common');
   const td = useTranslations('carDetail');
+  const tp = useTranslations('purchase');
   const {
     getCategoryLabel,
     getConditionLabel,
@@ -43,6 +44,7 @@ export default function CarDetailPage() {
     getDriveTypeLabel,
     getColorLabel,
     getAccidentHistoryLabel,
+    getImportedLabel,
   } = useOptionLabels();
 
   const id = params.id as string;
@@ -61,7 +63,6 @@ export default function CarDetailPage() {
   });
 
   const { addCar, removeCar, isSelected, selectedCars } = useCompareStore();
-  const { toggle, isFavorite } = useFavoritesStore();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -82,8 +83,7 @@ export default function CarDetailPage() {
   const activeImage = allImages[selectedImageIndex] ?? allImages[0];
 
   const selected = isSelected(car._id);
-  const favorite = isFavorite(car._id);
-  const dash = '—';
+  const canBuy = car.isAvailable !== false && car.status !== 'pending';
 
   const hasConditionDetails =
     (car.mileage != null && car.mileage >= 0) ||
@@ -99,66 +99,95 @@ export default function CarDetailPage() {
     !!car.tiresCondition;
 
   const specs = [
-    {
-      icon: Gauge,
-      label: td('horsepowerLabel'),
-      value: car.horsepower ? t('horsepower', { hp: String(car.horsepower) }) : dash,
-      color: 'text-primary-400',
-    },
-    {
-      icon: Zap,
-      label: t('torque'),
-      value: car.torque ? td('torqueValue', { value: String(car.torque) }) : dash,
-      color: 'text-amber-400',
-    },
-    {
-      icon: Gauge,
-      label: td('accelerationLabel'),
-      value: car.acceleration ? td('accelerationValue', { value: String(car.acceleration) }) : dash,
-      color: 'text-blue-400',
-    },
-    {
-      icon: Gauge,
-      label: t('topSpeed'),
-      value: car.topSpeed ? td('topSpeedValue', { value: String(car.topSpeed) }) : dash,
-      color: 'text-emerald-400',
-    },
-    {
-      icon: Fuel,
-      label: td('fuelConsumptionLabel'),
-      value:
-        car.engineType === 'electric'
-          ? getEngineTypeLabel('electric')
-          : car.fuelConsumption
-            ? td('fuelConsumptionValue', { value: String(car.fuelConsumption) })
-            : dash,
-      color: 'text-green-400',
-    },
-    {
-      icon: Users,
-      label: td('seatingLabel'),
-      value: car.seatingCapacity ? t('seats', { count: car.seatingCapacity }) : dash,
-      color: 'text-purple-400',
-    },
-    {
-      icon: Package,
-      label: t('cargoVolume'),
-      value: car.cargoVolume ? td('cargoValue', { value: String(car.cargoVolume) }) : dash,
-      color: 'text-cyan-400',
-    },
-    {
-      icon: Ruler,
-      label: t('weight'),
-      value: car.weight ? td('weightValue', { value: car.weight.toLocaleString(locale) }) : dash,
-      color: 'text-rose-400',
-    },
-  ];
-
-  const transmissionLabel = car.transmission
-    ? getTransmissionLabel(car.transmission)
-    : dash;
-  const driveLabel = car.driveType ? getDriveTypeLabel(car.driveType) : dash;
-  const colorLabel = car.color ? getColorLabel(car.color) : dash;
+    car.engineDisplacement != null && car.engineDisplacement > 0
+      ? {
+          icon: Cog,
+          label: t('displacement'),
+          value: `${car.engineDisplacement.toLocaleString(locale)} cc`,
+          color: 'text-primary-400',
+        }
+      : null,
+    car.horsepower != null && car.horsepower > 0
+      ? {
+          icon: Gauge,
+          label: td('horsepowerLabel'),
+          value: t('horsepower', { hp: String(car.horsepower) }),
+          color: 'text-amber-400',
+        }
+      : null,
+    car.cylinders != null && car.cylinders > 0
+      ? {
+          icon: Settings,
+          label: t('cylinders'),
+          value: String(car.cylinders),
+          color: 'text-blue-400',
+        }
+      : null,
+    car.engineType
+      ? {
+          icon: Fuel,
+          label: t('engineType'),
+          value: getEngineTypeLabel(car.engineType),
+          color: 'text-emerald-400',
+        }
+      : null,
+    car.transmission
+      ? {
+          icon: Zap,
+          label: t('transmission'),
+          value: getTransmissionLabel(car.transmission),
+          color: 'text-cyan-400',
+        }
+      : null,
+    car.driveType
+      ? {
+          icon: Gauge,
+          label: t('driveType'),
+          value: getDriveTypeLabel(car.driveType),
+          color: 'text-violet-400',
+        }
+      : null,
+    car.color
+      ? {
+          icon: Settings,
+          label: t('color'),
+          value: getColorLabel(car.color),
+          color: 'text-rose-400',
+        }
+      : null,
+    car.category
+      ? {
+          icon: Settings,
+          label: t('categoryType'),
+          value: getCategoryLabel(car.category),
+          color: 'text-orange-400',
+        }
+      : null,
+    car.seatingCapacity != null && car.seatingCapacity > 0
+      ? {
+          icon: Users,
+          label: td('seatingLabel'),
+          value: t('seats', { count: car.seatingCapacity }),
+          color: 'text-purple-400',
+        }
+      : null,
+    car.mileage != null && car.mileage >= 0 && car.condition !== 'new'
+      ? {
+          icon: Gauge,
+          label: t('mileage'),
+          value: `${car.mileage.toLocaleString(locale)} ${t('km')}`,
+          color: 'text-slate-300',
+        }
+      : null,
+    car.imported
+      ? {
+          icon: Shield,
+          label: td('importedLabel'),
+          value: getImportedLabel(car.imported),
+          color: 'text-teal-400',
+        }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item != null);
 
   return (
     <div className="min-h-screen py-8 bg-dark-950">
@@ -301,20 +330,6 @@ export default function CarDetailPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: t('engineType'), value: getEngineTypeLabel(car.engineType), icon: '⚙️' },
-                { label: t('transmission'), value: transmissionLabel, icon: '⚡' },
-                { label: t('driveType'), value: driveLabel, icon: '🔄' },
-                { label: t('color'), value: colorLabel, icon: '🎨' },
-              ].map(({ label, value, icon }) => (
-                <div key={label} className="bg-dark-800/60 border border-dark-700 rounded-xl p-3">
-                  <p className="text-slate-500 text-xs mb-1">{icon} {label}</p>
-                  <p className="text-white text-sm font-medium">{value}</p>
-                </div>
-              ))}
-            </div>
-
             {hasConditionDetails && (
               <div className="card p-5 sm:p-6">
                 <h3 className="text-white font-bold text-base mb-4 border-b border-dark-700 pb-2">
@@ -409,18 +424,19 @@ export default function CarDetailPage() {
 
             <div className="flex flex-col gap-3">
               <div className="flex gap-3">
-                <button
-                  onClick={() => toggle(car._id)}
-                  className={clsx(
-                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-medium transition-all',
-                    favorite
-                      ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                      : 'bg-dark-800 border-dark-700 text-slate-400 hover:text-red-400 hover:border-red-500/30'
-                  )}
-                >
-                  <Heart className="w-5 h-5" fill={favorite ? 'currentColor' : 'none'} />
-                  {favorite ? t('inFavorites') : t('addToFavorites')}
-                </button>
+                {canBuy ? (
+                  <Link
+                    href={`/cars/${car._id}/purchase`}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-medium transition-all bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    {tp('buy')}
+                  </Link>
+                ) : (
+                  <span className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-dark-700 text-slate-500 text-sm">
+                    {tp('carUnavailable')}
+                  </span>
+                )}
                 <button
                   onClick={() => selected ? removeCar(car._id) : (selectedCars.length < 4 && addCar(car))}
                   className={clsx(
@@ -441,6 +457,7 @@ export default function CarDetailPage() {
           </section>
         </div>
 
+        {specs.length > 0 && (
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
             <Settings className="w-6 h-6 text-primary-400" />
@@ -456,6 +473,7 @@ export default function CarDetailPage() {
             ))}
           </div>
         </section>
+        )}
 
         <section className="mb-12 grid md:grid-cols-3 gap-6">
           {[

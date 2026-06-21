@@ -27,6 +27,13 @@ import {
 } from '@/lib/market-catalog';
 import { validateCarImageFile } from '@/lib/car-image-upload';
 import { validateCarDocumentFile } from '@/lib/car-document-upload';
+import {
+  applyCatalogToNewCar,
+  applyNewCarFullOption,
+  isNewCondition,
+  NEW_CAR_CONDITION_FIELDS,
+  NEW_CAR_SPEC_FIELDS,
+} from '@/lib/car-form-defaults';
 import { Loader2, Save, ImageIcon, X, Star, FileText } from 'lucide-react';
 
 const CAR_CURRENCY_USD = 'USD';
@@ -104,25 +111,15 @@ const defaultForm = {
   year: new Date().getFullYear(),
   price: 0,
   category: 'sedan',
-  engineType: 'gasoline',
-  transmission: 'automatic',
-  driveType: 'FWD',
+  ...NEW_CAR_SPEC_FIELDS,
   engineDisplacement: '' as number | '',
   horsepower: '' as number | '',
-  cylinders: '' as number | '',
+  cylinders: 4 as number | '',
   color: '',
-  imported: 'local',
   condition: 'new',
-  seatingCapacity: 5,
   description: '',
-  mileageKm: '' as number | '',
-  motorCondition: '',
-  electricalCondition: '',
-  oilCondition: '',
-  engineSmokeLevel: '' as '' | '0' | '100',
-  chassisCondition: '',
-  accidentHistoryType: '' as '' | 'none' | 'half_cut' | 'full_cut',
-  tiresCondition: '',
+  ...NEW_CAR_CONDITION_FIELDS,
+  mileageKm: NEW_CAR_CONDITION_FIELDS.mileageKm as number | '',
 };
 
 type FormState = typeof defaultForm;
@@ -240,14 +237,17 @@ export function CarForm({ car }: { car?: Car }) {
       return;
     }
     updateCatalogHint(brandKey, modelKey, fillYear ? spec.year_ref : form.year);
-    setForm((prev) => ({
-      ...prev,
-      category: spec.category || prev.category,
-      engineDisplacement: spec.cc ?? prev.engineDisplacement,
-      horsepower: spec.hp ?? prev.horsepower,
-      transmission: spec.trans || prev.transmission,
-      ...(fillYear ? { year: spec.year_ref } : {}),
-    }));
+    setForm((prev) =>
+      applyCatalogToNewCar(prev, spec, fillYear),
+    );
+  }
+
+  function setCondition(value: string) {
+    if (isNewCondition(value)) {
+      setForm((prev) => applyNewCarFullOption({ ...prev, condition: 'new' }));
+      return;
+    }
+    update('condition', value);
   }
 
   function setBrand(value: string) {
@@ -873,7 +873,7 @@ export function CarForm({ car }: { car?: Car }) {
           <select
             className="select-field"
             value={form.condition}
-            onChange={(e) => update('condition', e.target.value)}
+            onChange={(e) => setCondition(e.target.value)}
           >
             {conditions.map((c) => (
               <option key={c.value} value={c.value}>

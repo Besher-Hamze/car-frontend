@@ -3,7 +3,10 @@ import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
-import { Car, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store, SlidersHorizontal } from 'lucide-react';
+import {
+  Car, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store,
+  SlidersHorizontal, ShoppingBag, Inbox,
+} from 'lucide-react';
 import { useCompareStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -12,6 +15,7 @@ import { clsx } from 'clsx';
 export function Navbar() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const tp = useTranslations('purchase');
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -101,6 +105,15 @@ export function Navbar() {
                 {t('myCars')}
               </Link>
             )}
+            {user?.role === 'seller' && (
+              <Link
+                href="/seller/purchases"
+                className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+              >
+                <Inbox className="w-4 h-4" />
+                {tp('sellerPurchases')}
+              </Link>
+            )}
             {user?.role === 'admin' && (
               <Link
                 href="/admin/cars"
@@ -112,6 +125,13 @@ export function Navbar() {
             )}
             {token && user ? (
               <div className="hidden md:flex items-center gap-2">
+                <Link
+                  href="/my-purchases"
+                  className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800 transition-colors"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  {tp('myPurchases')}
+                </Link>
                 <span className="text-xs text-slate-500 max-w-[120px] truncate" title={user.email}>
                   {user.name || user.email}
                 </span>
@@ -200,18 +220,38 @@ export function Navbar() {
               </Link>
             )}
             {token && user ? (
-              <button
-                type="button"
-                onClick={() => {
-                  logout();
-                  setMobileOpen(false);
-                  router.refresh();
-                }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-dark-800 w-full text-start"
-              >
-                <LogOut className="w-4 h-4" />
-                {t('logoutFull', { email: user.email })}
-              </button>
+              <>
+                <Link
+                  href="/my-purchases"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-dark-800"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  {tp('myPurchases')}
+                </Link>
+                {user.role === 'seller' && (
+                  <Link
+                    href="/seller/purchases"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-emerald-400 hover:bg-dark-800"
+                  >
+                    <Inbox className="w-4 h-4" />
+                    {tp('sellerPurchases')}
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setMobileOpen(false);
+                    router.refresh();
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-dark-800 w-full text-start"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {t('logoutFull', { email: user.email })}
+                </button>
+              </>
             ) : (
               <div className="flex flex-col gap-1 pt-2 border-t border-dark-700/50">
                 <Link

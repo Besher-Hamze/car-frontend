@@ -1,11 +1,11 @@
 'use client';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import Image from 'next/image';
-import { Heart, GitCompare, Fuel, Zap, Users, Star, Eye } from 'lucide-react';
+import { GitCompare, Fuel, Zap, Users, Star, Eye, ShoppingCart } from 'lucide-react';
 import { Car, formatPrice } from '../../types';
 import { AiPriceLabelBadge } from './AiPriceLabelBadge';
 import { resolveCarImageUrl } from '../../lib/image-url';
-import { useCompareStore, useFavoritesStore } from '../../lib/store';
+import { useCompareStore } from '../../lib/store';
 import { clsx } from 'clsx';
 import { useTranslations, useLocale } from 'next-intl';
 import { useOptionLabels } from '@/lib/i18n-options';
@@ -21,14 +21,15 @@ const engineIcon = (type: string) => {
 };
 
 export function CarCard({ car }: CarCardProps) {
+  const router = useRouter();
   const t = useTranslations('common');
+  const tp = useTranslations('purchase');
   const locale = useLocale();
   const { getCategoryLabel, getEngineTypeLabel, getConditionLabel } = useOptionLabels();
   const { addCar, removeCar, isSelected, selectedCars } = useCompareStore();
-  const { toggle, isFavorite } = useFavoritesStore();
   const selected = isSelected(car._id);
-  const favorite = isFavorite(car._id);
   const canAdd = selectedCars.length < 4 || selected;
+  const canBuy = car.isAvailable !== false;
 
   const handleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,9 +37,9 @@ export function CarCard({ car }: CarCardProps) {
     else if (canAdd) addCar(car);
   };
 
-  const handleFavorite = (e: React.MouseEvent) => {
+  const handleBuy = (e: React.MouseEvent) => {
     e.preventDefault();
-    toggle(car._id);
+    router.push(`/cars/${car._id}/purchase`);
   };
 
   const imgSrc = resolveCarImageUrl(car.imageUrl);
@@ -64,25 +65,25 @@ export function CarCard({ car }: CarCardProps) {
 
           {/* Overlay Actions */}
           <div className="absolute top-3 left-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {canBuy && (
+              <button
+                type="button"
+                onClick={handleBuy}
+                title={tp('buy')}
+                className="w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all bg-emerald-500/90 text-white hover:bg-emerald-400"
+              >
+                <ShoppingCart className="w-4 h-4" />
+              </button>
+            )}
             <button
-              onClick={handleFavorite}
-              className={clsx(
-                'w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all',
-                favorite
-                  ? 'bg-red-500 text-white'
-                  : 'bg-dark-900/80 text-slate-400 hover:text-red-400'
-              )}
-            >
-              <Heart className="w-4 h-4" fill={favorite ? 'currentColor' : 'none'} />
-            </button>
-            <button
+              type="button"
               onClick={handleCompare}
               disabled={!canAdd && !selected}
               className={clsx(
                 'w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all',
                 selected
                   ? 'bg-primary-500 text-white'
-                  : 'bg-dark-900/80 text-slate-400 hover:text-primary-400 disabled:opacity-40'
+                  : 'bg-dark-900/80 text-slate-400 hover:text-primary-400 disabled:opacity-40',
               )}
             >
               <GitCompare className="w-4 h-4" />

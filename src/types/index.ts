@@ -104,6 +104,31 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export type PurchaseRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
+export interface PurchaseRequest {
+  _id: string;
+  carId: string | Car;
+  buyerId: string | { _id: string; name?: string; email?: string };
+  sellerId?: string | { _id: string; name?: string; email?: string };
+  status: PurchaseRequestStatus;
+  carPrice: number;
+  depositPercent: number;
+  depositAmount: number;
+  contractMonths: number;
+  buyerIdUrls: string[];
+  depositProofUrl?: string;
+  buyerPhone: string;
+  buyerNotes?: string;
+  rejectionReason?: string;
+  carBrand?: string;
+  carModel?: string;
+  carYear?: number;
+  carImageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ComparisonResult {
   cars: Car[];
   comparison: ComparisonField[];

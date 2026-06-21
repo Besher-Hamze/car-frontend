@@ -102,3 +102,17 @@ export const authApi = {
     }),
   me: () => api.get<AuthUser>('/auth/me'),
 };
+
+export const purchaseRequestsApi = {
+  create: (formData: FormData) =>
+    api.post('/purchase-requests', formData, {
+      timeout: 120000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    }),
+  getMine: () => api.get('/purchase-requests/mine'),
+  getSeller: () => api.get('/purchase-requests/seller'),
+  respond: (id: string, action: 'accept' | 'reject', reason?: string) =>
+    api.patch(`/purchase-requests/${id}/respond`, { action, reason }),
+  cancel: (id: string) => api.patch(`/purchase-requests/${id}/cancel`),
+};
