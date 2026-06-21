@@ -644,6 +644,15 @@
     "rejectReason": "سبب الرفض",
     "confirmAccept": "قبول طلب الشراء؟",
     "confirmReject": "رفض طلب الشراء؟",
-    "confirmCancel": "إلغاء طلب الشراء؟"
+    "confirmCancel": "إلغاء طلب الشراء؟",
+    "viewDetails": "عرض التفاصيل",
+    "requestDetails": "تفاصيل طلب الشراء",
+    "financialDetails": "التفاصيل المالية",
+    "dates": "التواريخ",
+    "lastUpdated": "آخر تحديث",
+    "buyerInfo": "معلومات المشتري",
+    "buyerEmail": "البريد الإلكتروني",
+    "viewCarListing": "عرض إعلان السيارة",
+    "requestNotFound": "طلب الشراء غير موجود"
   }
 }

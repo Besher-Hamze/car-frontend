@@ -644,6 +644,15 @@
     "rejectReason": "Rejection reason",
     "confirmAccept": "Accept this purchase request?",
     "confirmReject": "Reject this purchase request?",
-    "confirmCancel": "Cancel this purchase request?"
+    "confirmCancel": "Cancel this purchase request?",
+    "viewDetails": "View details",
+    "requestDetails": "Purchase request details",
+    "financialDetails": "Financial details",
+    "dates": "Dates",
+    "lastUpdated": "Last updated",
+    "buyerInfo": "Buyer information",
+    "buyerEmail": "Email",
+    "viewCarListing": "View car listing",
+    "requestNotFound": "Purchase request not found"
   }
 }

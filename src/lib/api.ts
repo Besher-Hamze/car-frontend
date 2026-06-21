@@ -112,6 +112,7 @@ export const purchaseRequestsApi = {
     }),
   getMine: () => api.get('/purchase-requests/mine'),
   getSeller: () => api.get('/purchase-requests/seller'),
+  getOne: (id: string) => api.get(`/purchase-requests/${id}`),
   respond: (id: string, action: 'accept' | 'reject', reason?: string) =>
     api.patch(`/purchase-requests/${id}/respond`, { action, reason }),
   cancel: (id: string) => api.patch(`/purchase-requests/${id}/cancel`),

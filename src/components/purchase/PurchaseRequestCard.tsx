@@ -91,6 +91,12 @@ export function PurchaseRequestCard({ request, mode, onAccept, onReject, onCance
         )}
 
         <div className="flex flex-wrap gap-2 pt-1">
+          <Link
+            href={mode === 'seller' ? `/seller/purchases/${request._id}` : `/my-purchases/${request._id}`}
+            className="text-xs px-3 py-1.5 rounded-lg border border-primary-500/30 bg-primary-500/10 text-primary-400 hover:bg-primary-500/20"
+          >
+            {t('viewDetails')}
+          </Link>
           {mode === 'buyer' && request.status === 'pending' && onCancel && (
             <button
               type="button"
