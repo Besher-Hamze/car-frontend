@@ -129,11 +129,87 @@ export interface PurchaseRequest {
   updatedAt: string;
 }
 
+export type TradeRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+export type CashDirection = 'requester_pays' | 'owner_pays';
+
+export interface TradeRequest {
+  _id: string;
+  targetCarId: string | Car;
+  requesterId: string | { _id: string; name?: string; email?: string };
+  ownerId?: string | { _id: string; name?: string; email?: string };
+  status: TradeRequestStatus;
+  offerCarId?: string | Car;
+  offerBrand?: string;
+  offerModel?: string;
+  offerYear?: number;
+  offerPrice: number;
+  offerCondition?: string;
+  offerMileage?: number;
+  offerEngineType?: string;
+  offerHorsepower?: number;
+  offerTransmission?: string;
+  offerColor?: string;
+  offerDescription?: string;
+  offerImageUrls: string[];
+  proofDocUrls: string[];
+  targetCarPrice: number;
+  cashDifference: number;
+  cashDirection: CashDirection;
+  requesterPhone: string;
+  ownerPhone?: string;
+  requesterNotes?: string;
+  rejectionReason?: string;
+  targetCarBrand?: string;
+  targetCarModel?: string;
+  targetCarYear?: number;
+  targetCarImageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CompareCriterionKey = 'price' | 'mileage' | 'engine' | 'year';
+
+export interface ComparisonCriteriaUsed {
+  key: CompareCriterionKey;
+  labelAr: string;
+  weight: number;
+  order: number;
+  unit: string;
+  lowerIsBetter: boolean;
+}
+
+export interface ComparisonPriorityRow {
+  key: CompareCriterionKey;
+  labelAr: string;
+  unit: string;
+  weight: number;
+  order?: number;
+  lowerIsBetter: boolean;
+  values: {
+    carId: string;
+    value: number | string;
+    normalizedScore: number;
+    isBest: boolean;
+  }[];
+}
+
+export interface CarScoreBreakdown {
+  key: CompareCriterionKey;
+  labelAr: string;
+  weight: number;
+  rawValue: number | null;
+  normalizedScore: number;
+  weightedContribution: number;
+}
+
 export interface ComparisonResult {
   cars: Car[];
   comparison: ComparisonField[];
+  criteriaUsed?: ComparisonCriteriaUsed[];
+  priorityComparison?: ComparisonPriorityRow[];
   scores: CarScore[];
   winner: CarScore;
+  scoringMethod?: string;
 }
 
 export interface ComparisonField {
@@ -154,6 +230,7 @@ export interface CarScore {
   brand: string;
   model: string;
   score: number;
+  breakdown?: CarScoreBreakdown[];
 }
 
 export interface QueryParams {

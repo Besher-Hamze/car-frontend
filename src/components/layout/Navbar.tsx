@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import {
   Car, Home, Menu, X, Scale, LogIn, UserPlus, LogOut, Shield, Store,
-  SlidersHorizontal, ShoppingBag, Inbox,
+  SlidersHorizontal, ShoppingBag, Inbox, ArrowLeftRight,
 } from 'lucide-react';
 import { useCompareStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
@@ -16,6 +16,7 @@ export function Navbar() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const tp = useTranslations('purchase');
+  const tt = useTranslations('trade');
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -107,6 +108,15 @@ export function Navbar() {
             )}
             {user?.role === 'seller' && (
               <Link
+                href="/seller/trades"
+                className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-colors"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                {tt('sellerTrades')}
+              </Link>
+            )}
+            {user?.role === 'seller' && (
+              <Link
                 href="/seller/purchases"
                 className="hidden md:flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
               >
@@ -125,6 +135,13 @@ export function Navbar() {
             )}
             {token && user ? (
               <div className="hidden md:flex items-center gap-2">
+                <Link
+                  href="/my-trades"
+                  className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800 transition-colors"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  {tt('myTrades')}
+                </Link>
                 <Link
                   href="/my-purchases"
                   className="flex items-center gap-1.5 text-sm py-2 px-3 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800 transition-colors"
@@ -222,6 +239,14 @@ export function Navbar() {
             {token && user ? (
               <>
                 <Link
+                  href="/my-trades"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-violet-400 hover:bg-dark-800"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  {tt('myTrades')}
+                </Link>
+                <Link
                   href="/my-purchases"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-dark-800"
@@ -229,6 +254,16 @@ export function Navbar() {
                   <ShoppingBag className="w-4 h-4" />
                   {tp('myPurchases')}
                 </Link>
+                {user.role === 'seller' && (
+                  <Link
+                    href="/seller/trades"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-violet-400 hover:bg-dark-800"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    {tt('sellerTrades')}
+                  </Link>
+                )}
                 {user.role === 'seller' && (
                   <Link
                     href="/seller/purchases"

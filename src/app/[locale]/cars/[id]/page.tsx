@@ -20,7 +20,7 @@ import { AiPriceLabelBadge } from '@/components/cars/AiPriceLabelBadge';
 import {
   GitCompare, Fuel, Zap, Shield, Star, Eye, Users,
   Gauge, Settings, ChevronLeft, CheckCircle2,
-  Calendar, Pencil, Trash2, ZoomIn, ShoppingCart, Cog
+  Calendar, Pencil, Trash2, ZoomIn, ShoppingCart, Cog, ArrowLeftRight
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { resolveCarImagesUrl, resolveCarImageUrl } from '@/lib/image-url';
@@ -36,6 +36,7 @@ export default function CarDetailPage() {
   const t = useTranslations('common');
   const td = useTranslations('carDetail');
   const tp = useTranslations('purchase');
+  const tt = useTranslations('trade');
   const {
     getCategoryLabel,
     getConditionLabel,
@@ -84,6 +85,7 @@ export default function CarDetailPage() {
 
   const selected = isSelected(car._id);
   const canBuy = car.isAvailable !== false && car.status !== 'pending';
+  const canTrade = car.status === 'published';
 
   const hasConditionDetails =
     (car.mileage != null && car.mileage >= 0) ||
@@ -437,6 +439,21 @@ export default function CarDetailPage() {
                     {tp('carUnavailable')}
                   </span>
                 )}
+                {canTrade ? (
+                  <Link
+                    href={`/cars/${car._id}/trade`}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-medium transition-all bg-violet-500/15 border-violet-500/30 text-violet-400 hover:bg-violet-500/25"
+                  >
+                    <ArrowLeftRight className="w-5 h-5" />
+                    {tt('trade')}
+                  </Link>
+                ) : (
+                  <span className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-dark-700 text-slate-500 text-sm">
+                    {tt('carUnavailable')}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-3">
                 <button
                   onClick={() => selected ? removeCar(car._id) : (selectedCars.length < 4 && addCar(car))}
                   className={clsx(

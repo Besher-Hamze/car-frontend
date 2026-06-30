@@ -86,7 +86,15 @@ export const sparePartsApi = {
 
 // Comparison API
 export const comparisonApi = {
-  compare: (carIds: string[]) => api.post('/compare', { carIds }),
+  compare: (
+    carIds: string[],
+    payload: { mode: 'basic' | 'all'; criteria?: Array<{ key: string; weight: number; order: number }> },
+  ) =>
+    api.post('/compare', {
+      carIds,
+      mode: payload.mode,
+      ...(payload.mode === 'basic' && payload.criteria ? { criteria: payload.criteria } : {}),
+    }),
 };
 
 // Auth API
@@ -116,4 +124,19 @@ export const purchaseRequestsApi = {
   respond: (id: string, action: 'accept' | 'reject', reason?: string) =>
     api.patch(`/purchase-requests/${id}/respond`, { action, reason }),
   cancel: (id: string) => api.patch(`/purchase-requests/${id}/cancel`),
+};
+
+export const tradeRequestsApi = {
+  create: (formData: FormData) =>
+    api.post('/trade-requests', formData, {
+      timeout: 120000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    }),
+  getMine: () => api.get('/trade-requests/mine'),
+  getIncoming: () => api.get('/trade-requests/incoming'),
+  getOne: (id: string) => api.get(`/trade-requests/${id}`),
+  respond: (id: string, action: 'accept' | 'reject', opts?: { reason?: string; ownerPhone?: string }) =>
+    api.patch(`/trade-requests/${id}/respond`, { action, ...opts }),
+  cancel: (id: string) => api.patch(`/trade-requests/${id}/cancel`),
 };
