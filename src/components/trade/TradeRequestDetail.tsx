@@ -81,8 +81,15 @@ export function TradeRequestDetail({ request, mode, busy, onAccept, onReject, on
   const [ownerPhoneInput, setOwnerPhoneInput] = useState('');
   const [showAcceptForm, setShowAcceptForm] = useState(false);
 
+  const requesterPays = request.cashDirection === 'requester_pays';
   const cashLabel =
-    request.cashDirection === 'requester_pays' ? t('requesterPays') : t('ownerPays');
+    mode === 'requester'
+      ? requesterPays
+        ? t('requesterPays')
+        : t('ownerPays')
+      : requesterPays
+        ? t('ownerPays')
+        : t('requesterPays');
 
   const phonesHidden = request.status !== 'accepted';
   const showRequesterPhone =

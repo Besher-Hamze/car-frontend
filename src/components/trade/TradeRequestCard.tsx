@@ -39,8 +39,15 @@ export function TradeRequestCard({ request, mode, onAccept, onReject, onCancel, 
       ? request.requesterId.name || request.requesterId.email
       : undefined;
 
+  const requesterPays = request.cashDirection === 'requester_pays';
   const cashLabel =
-    request.cashDirection === 'requester_pays' ? t('requesterPays') : t('ownerPays');
+    mode === 'requester'
+      ? requesterPays
+        ? t('requesterPays')
+        : t('ownerPays')
+      : requesterPays
+        ? t('ownerPays')
+        : t('requesterPays');
 
   return (
     <div className="card p-4 sm:p-5 flex flex-col sm:flex-row gap-4">
