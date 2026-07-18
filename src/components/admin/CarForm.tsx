@@ -35,6 +35,7 @@ import {
   NEW_CAR_SPEC_FIELDS,
 } from '@/lib/car-form-defaults';
 import { Loader2, Save, ImageIcon, X, Star, FileText } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const CAR_CURRENCY_USD = 'USD';
 const MAX_IMAGES = 10;
@@ -460,6 +461,8 @@ export function CarForm({ car }: { car?: Car }) {
     }
   }
 
+  const client= useQueryClient();
+
   function removeDoc(index: number) {
     setDocSlots((prev) => prev.filter((_, i) => i !== index));
   }
@@ -561,6 +564,8 @@ export function CarForm({ car }: { car?: Car }) {
       } else {
         await carsApi.create(fd);
       }
+      client.invalidateQueries({ queryKey: ['cars'] });
+      client.invalidateQueries({ queryKey: ['car', car?._id] });
       router.push('/admin/cars');
       router.refresh();
     } catch (err: unknown) {

@@ -107,7 +107,11 @@ function CarsPageInner() {
   });
 
   const updateFilter = useCallback((key: keyof QueryParams, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+      ...(key === 'page' ? {} : { page: 1 }),
+    }));
   }, []);
 
   const clearFilters = () => setFilters({ ...DEFAULT_FILTERS });
@@ -469,7 +473,10 @@ function CarsPageInner() {
             </button>
 
             {Array.from({ length: Math.min(5, meta.totalPages) }).map((_, i) => {
-              const page = i + 1;
+              const currentPage = filters.page || 1;
+              const maxStart = Math.max(1, meta.totalPages - 4);
+              const startPage = Math.min(Math.max(1, currentPage - 2), maxStart);
+              const page = startPage + i;
               const isActive = page === (filters.page || 1);
               return (
                 <button
